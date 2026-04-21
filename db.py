@@ -9,7 +9,7 @@ import os
 import threading
 from pathlib import Path
 
-DB_PATH = os.getenv("DB_PATH", "/home/julian/ProyectoSC/data/inventory.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.expanduser("~"), "ProyectoSC", "data", "inventory.db"))
 _local = threading.local()
 
 

@@ -1,0 +1,12 @@
+2026-04-20 12:03:29,990 [Provisioner] INFO Provisioner TCP escuchando en :12346
+2026-04-20 12:03:29,991 [Provisioner] INFO Anunciando maestro en broadcast:12346 cada 5s
+2026-04-20 12:05:49,532 [Provisioner] INFO Provisioner TCP escuchando en :12346
+2026-04-20 12:05:49,532 [Provisioner] INFO Anunciando maestro en broadcast:12346 cada 5s
+Traceback (most recent call last):
+  File "/home/julian/ProyectoSC/provisioner.py", line 223, in <module>
+2026-04-20 12:13:29,292 [Provisioner] INFO Provisioner TCP escuchando en :12346
+2026-04-20 12:13:29,292 [Provisioner] INFO Anunciando maestro en broadcast:12346 cada 5s
+Traceback (most recent call last):
+  File "/home/julian/ProyectoSC/provisioner.py", line 223, in <module>
+2026-04-20 12:17:32,711 [Provisioner] INFO Provisioner TCP escuchando en :12346
+2026-04-20 12:17:32,711 [Provisioner] INFO Anunciando maestro en broadcast:12346 cada 5s

@@ -1,0 +1,16 @@
+{
+  "node_name": "Node-1",
+  "role": "master",
+  "master_ip": "",
+  "bat0_ip": "192.168.200.101",
+  "broadcast_ip": "255.255.255.255",
+  "broadcast_port": 12345,
+  "provision_port": 12346,
+  "dashboard_port": 5000,
+  "control_port": 5001,
+  "collaboration_pct": 20,
+  "online": true,
+  "gen_rate": 6.1,
+  "drop_prob": 0,
+  "payload_size": 0
+}

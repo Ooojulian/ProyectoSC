@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nodo Maestro — {{ node_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5}
+header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:16px}
+header nav a{color:#fff;text-decoration:none;margin-left:14px;font-size:13px;opacity:.85}
+header nav a:hover{opacity:1}
+.container{max-width:1200px;margin:20px auto;padding:0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.card h2{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#667eea;font-weight:700;margin-bottom:14px}
+.node-card{background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #667eea;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.node-card .info .name{font-weight:700;font-size:14px}
+.node-card .info .sub{font-size:12px;color:#666;margin-top:2px}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.master{background:#dbeafe;color:#1e40af}
+.replica{background:#d1fae5;color:#065f46}
+.sensor{background:#fef3c7;color:#92400e}
+.gateway{background:#ede9fe;color:#5b21b6}
+.dot{width:10px;height:10px;border-radius:50%;background:#4ade80;margin-right:6px;display:inline-block;animation:pulse 2s infinite}
+.dot.off{background:#f87171;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stat{text-align:center}
+.stat .val{font-size:28px;font-weight:700;color:#667eea}
+.stat .lbl{font-size:11px;color:#999;text-transform:uppercase}
+.empty{color:#999;font-size:13px;padding:16px 0;text-align:center}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f8f9fa;padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid #e9ecef}
+tbody td{padding:8px 12px;border-bottom:1px solid #f5f5f5}
+.provision-box{background:#1e293b;color:#4ade80;font-family:'Courier New',monospace;font-size:12px;padding:14px;border-radius:8px;max-height:200px;overflow-y:auto;line-height:1.5}
+.provision-box p{margin-bottom:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>👑 Nodo Maestro — {{ node_name }}</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/inventory">Inventario</a>
+    <a href="/master">Maestro</a>
+    <a href="http://localhost:5001">Control</a>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <div class="card stat"><div class="val" id="n-total">—</div><div class="lbl">Nodos provisionados</div></div>
+    <div class="card stat"><div class="val" id="n-tx">—</div><div class="lbl">Transacciones totales</div></div>
+    <div class="card stat"><div class="val" id="n-lat">—</div><div class="lbl">Latencia promedio (ms)</div></div>
+    <div class="card stat"><div class="val" id="n-items">—</div><div class="lbl">Items en inventario</div></div>
+  </div>
+
+  <!-- Instrucción bootstrap -->
+  <div class="card" style="margin-bottom:16px">
+    <h2>Cómo conectar un nuevo nodo</h2>
+    <p style="font-size:13px;color:#555;margin-bottom:10px">
+      En el computador nuevo, abre una terminal y ejecuta <strong>uno solo</strong> de estos comandos:
+    </p>
+    <div class="provision-box" id="bootstrap-cmd">
+      <p>Cargando IP del maestro…</p>
+    </div>
+  </div>
+
+  <!-- Nodos provisionados -->
+  <div class="card" style="margin-bottom:16px">
+    <h2>Nodos Conectados / Provisionados</h2>
+    <div id="nodes-list"><div class="empty">Esperando nodos…</div></div>
+  </div>
+
+  <!-- Logs del provisioner -->
+  <div class="card">
+    <h2>Log del Provisioner</h2>
+    <div class="provision-box" id="prov-log">
+      <p>Cargando logs…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+async function load() {
+  const [nodesRes, metricsRes, itemsRes, logsRes] = await Promise.all([
+    fetch('/api/provisioned-nodes'),
+    fetch('/api/metrics'),
+    fetch('/api/items'),
+    fetch('/api/logs'),
+  ]);
+  const nodes   = await nodesRes.json();
+  const metrics = await metricsRes.json();
+  const items   = await itemsRes.json();
+  const logs    = await logsRes.json();
+
+  document.getElementById('n-total').textContent = nodes.length;
+  document.getElementById('n-tx').textContent    = metrics.total_transactions ?? 0;
+  document.getElementById('n-lat').textContent   = metrics.avg_latency_ms ?? 0;
+  document.getElementById('n-items').textContent = items.length;
+
+  // Bootstrap command
+  const masterIp = (metrics.nodes?.[0]) ? window.location.hostname : window.location.hostname;
+  document.getElementById('bootstrap-cmd').innerHTML = `
+    <p style="color:#fbbf24"># Opción 1: descubrimiento automático (recomendado)</p>
+    <p>python3 client_bootstrap.py</p>
+    <p>&nbsp;</p>
+    <p style="color:#fbbf24"># Opción 2: con IP directa del maestro</p>
+    <p>python3 client_bootstrap.py ${masterIp}</p>
+    <p>&nbsp;</p>
+    <p style="color:#64748b"># Si no tienen el bootstrap aún, copiar desde el maestro:</p>
+    <p style="color:#64748b">scp usuario@${masterIp}:~/ProyectoSC/client_bootstrap.py .</p>
+  `;
+
+  // Lista de nodos
+  const nl = document.getElementById('nodes-list');
+  if (!nodes.length) {
+    nl.innerHTML = '<div class="empty">Sin nodos provisionados aún. Esperando conexiones…</div>';
+  } else {
+    nl.innerHTML = nodes.map(n => `
+      <div class="node-card">
+        <div class="info">
+          <div class="name"><span class="dot"></span>${n.node_name}</div>
+          <div class="sub">IP: ${n.bat0_ip} &nbsp;|&nbsp; Conectado: ${fmtDate(n.connected_at)}</div>
+        </div>
+        <div>
+          <span class="badge ${n.role}">${n.role}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Logs
+  const logLines = (logs.logs || []).filter(l => l.trim());
+  document.getElementById('prov-log').innerHTML =
+    logLines.slice(-30).map(l => `<p>${l.trim()}</p>`).join('') || '<p style="color:#475569">Sin logs</p>';
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(parseFloat(ts) * 1000).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'medium'});
+}
+
+load();
+setInterval(load, 2000);
+</script>
+</body>
+</html>

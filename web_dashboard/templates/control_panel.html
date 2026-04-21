@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Control — {{ node_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:16px;color:#818cf8}
+header nav a{color:#94a3b8;text-decoration:none;margin-left:16px;font-size:13px}
+header nav a:hover{color:#e2e8f0}
+.container{max-width:1400px;margin:20px auto;padding:0 16px;display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.container{grid-template-columns:1fr}}
+.card{background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155}
+.card h2{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:16px;font-weight:700}
+
+/* Sliders */
+.control-group{margin-bottom:18px}
+.control-group label{display:flex;justify-content:space-between;font-size:13px;color:#cbd5e1;margin-bottom:6px}
+.control-group label span{color:#818cf8;font-weight:700}
+input[type=range]{width:100%;accent-color:#818cf8;height:6px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #334155;margin-top:8px}
+.toggle-row span{font-size:13px;color:#cbd5e1}
+.toggle{position:relative;width:44px;height:24px}
+.toggle input{opacity:0;width:0;height:0}
+.slider-tog{position:absolute;cursor:pointer;inset:0;background:#334155;border-radius:24px;transition:.3s}
+.slider-tog:before{content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#94a3b8;border-radius:50%;transition:.3s}
+input:checked+.slider-tog{background:#818cf8}
+input:checked+.slider-tog:before{transform:translateX(20px);background:#fff}
+.btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;width:100%;margin-top:8px}
+.btn-apply{background:#818cf8;color:#fff}.btn-apply:hover{background:#6366f1}
+.btn-off{background:#ef4444;color:#fff;margin-top:4px}.btn-off:hover{background:#dc2626}
+.btn-on{background:#22c55e;color:#fff;margin-top:4px}.btn-on:hover{background:#16a34a}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.online{background:#166534;color:#4ade80}.offline{background:#7f1d1d;color:#fca5a5}
+.role-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#1e3a8a;color:#93c5fd}
+
+/* Packet log */
+.pkt-log{background:#0f172a;border-radius:8px;padding:12px;max-height:420px;overflow-y:auto;font-family:'Courier New',monospace;font-size:11px;border:1px solid #1e293b}
+.pkt{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1e293b;align-items:center}
+.pkt:last-child{border:none}
+.pkt .ts{color:#475569;min-width:70px}
+.pkt .dir{min-width:28px;text-align:center}
+.in{color:#34d399}.out{color:#60a5fa}.dropped{color:#f87171;text-decoration:line-through}
+.pkt .node{color:#a78bfa;min-width:80px}
+.pkt .sku{color:#fbbf24;min-width:70px}
+.pkt .action{min-width:55px}
+.pkt .lat{color:#94a3b8;min-width:55px;text-align:right}
+.pkt .sz{color:#64748b;font-size:10px}
+.action.add{color:#4ade80}.action.remove{color:#f87171}
+.action.update{color:#60a5fa}.action.check{color:#fbbf24}
+
+/* Mapa de comunicaciones */
+.comm-map{display:flex;flex-direction:column;gap:6px}
+.edge{display:flex;justify-content:space-between;padding:7px 10px;background:#0f172a;border-radius:6px;font-size:12px}
+.edge .ep{color:#818cf8}.edge .cnt{color:#94a3b8}
+
+/* Stats */
+.stat-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px}
+.stat-row:last-child{border:none}
+.stat-row .k{color:#64748b}.stat-row .v{color:#e2e8f0;font-weight:600}
+
+/* Nodes */
+.node-pill{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:3px 10px;font-size:11px;color:#94a3b8;margin:3px}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙️ Panel de Control — <span id="h-name">{{ node_name }}</span>
+    <span class="role-badge" id="h-role">{{ role }}</span>
+    <span class="status-badge online" id="h-status">online</span>
+  </h1>
+  <nav>
+    <a href="http://localhost:5080">Dashboard</a>
+    <a href="http://localhost:5080/inventory">Inventario</a>
+    <a href="/">Control</a>
+  </nav>
+</header>
+
+<div class="container">
+  <!-- Columna izquierda: controles -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Comportamiento del Nodo</h2>
+
+      <div class="control-group">
+        <label>Colaboración <span id="collab-val">100</span>%</label>
+        <input type="range" id="collab" min="0" max="100" value="100"
+               oninput="document.getElementById('collab-val').textContent=this.value">
+        <div style="font-size:11px;color:#475569;margin-top:4px">
+          % de paquetes que este nodo reenvía a la red
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Tasa generación <span id="gen-val">1.0</span> ev/s</label>
+        <input type="range" id="gen-rate" min="0.1" max="20" step="0.1" value="1.0"
+               oninput="document.getElementById('gen-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+
+      <div class="control-group">
+        <label>Interferencia <span id="drop-val">0</span>%</label>
+        <input type="range" id="drop-prob" min="0" max="100" value="0"
+               oninput="document.getElementById('drop-val').textContent=this.value">
+      </div>
+
+      <div class="toggle-row">
+        <span>Nodo activo</span>
+        <label class="toggle">
+          <input type="checkbox" id="online-toggle" checked onchange="toggleOnline(this.checked)">
+          <span class="slider-tog"></span>
+        </label>
+      </div>
+
+      <button class="btn btn-apply" onclick="applyConfig()">Aplicar cambios</button>
+    </div>
+
+    <!-- Stats rápidas -->
+    <div class="card">
+      <h2>Estado del Nodo</h2>
+      <div id="stats-body">
+        <div class="stat-row"><span class="k">Cargando…</span></div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="font-size:11px;color:#475569;margin-bottom:6px">Nodos vistos en la red:</div>
+        <div id="nodes-pills"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Columna derecha: log + mapa -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2 style="display:flex;justify-content:space-between">
+        <span>Paquetes en Tiempo Real</span>
+        <span style="font-weight:400;color:#475569">
+          <span style="color:#34d399">▲ IN</span> &nbsp;
+          <span style="color:#60a5fa">▼ OUT</span> &nbsp;
+          <span style="color:#f87171">✕ DROP</span>
+        </span>
+      </h2>
+      <div class="pkt-log" id="pkt-log">
+        <div style="color:#475569;text-align:center;padding:20px">Esperando paquetes…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Mapa de Comunicaciones</h2>
+      <div class="comm-map" id="comm-map">
+        <div style="color:#475569;font-size:13px">Sin datos aún…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let autoScroll = true;
+let _userEditing = false;
+let _editTimeout = null;
+
+// Marcar "usuario editando" por 3s tras tocar cualquier slider
+function _markEditing() {
+  _userEditing = true;
+  clearTimeout(_editTimeout);
+  _editTimeout = setTimeout(() => { _userEditing = false; }, 3000);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  ['collab','gen-rate','drop-prob'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('mousedown', _markEditing);
+    if (el) el.addEventListener('touchstart', _markEditing);
+  });
+});
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/node-status');
+    const d = await r.json();
+
+    document.getElementById('h-name').textContent   = d.node_name;
+    document.getElementById('h-role').textContent   = d.role;
+    const sb = document.getElementById('h-status');
+    sb.textContent  = d.online ? 'online' : 'offline';
+    sb.className    = `status-badge ${d.online ? 'online' : 'offline'}`;
+
+    // Solo sincronizar sliders si el usuario NO está editando
+    if (!_userEditing) {
+      document.getElementById('collab').value    = d.collaboration_pct;
+      document.getElementById('collab-val').textContent = d.collaboration_pct;
+      document.getElementById('gen-rate').value  = d.gen_rate;
+      document.getElementById('gen-val').textContent    = parseFloat(d.gen_rate).toFixed(1);
+      document.getElementById('drop-prob').value = Math.round(d.drop_prob * 100);
+      document.getElementById('drop-val').textContent   = Math.round(d.drop_prob * 100);
+    }
+    document.getElementById('online-toggle').checked  = d.online;
+
+    // Stats
+    document.getElementById('stats-body').innerHTML = `
+      <div class="stat-row"><span class="k">Total transacciones</span><span class="v">${d.total_tx}</span></div>
+      <div class="stat-row"><span class="k">Latencia promedio</span><span class="v">${d.avg_latency} ms</span></div>
+      <div class="stat-row"><span class="k">Rol asignado</span><span class="v">${d.role}</span></div>
+      <div class="stat-row"><span class="k">Colaboración</span><span class="v">${d.collaboration_pct}%</span></div>
+    `;
+
+    // Nodos
+    document.getElementById('nodes-pills').innerHTML =
+      (d.nodes_seen || []).map(n => `<span class="node-pill">${n}</span>`).join('') || '<span style="color:#475569;font-size:12px">Sin nodos</span>';
+
+  } catch(e) { console.error(e); }
+}
+
+async function loadPackets() {
+  try {
+    const r = await fetch('/api/packets?limit=60');
+    const pkts = await r.json();
+    const log  = document.getElementById('pkt-log');
+    if (!pkts.length) return;
+    log.innerHTML = pkts.map(p => {
+      const t   = new Date(p.ts * 1000).toLocaleTimeString('es-CO');
+      const dir = p.dropped ? '✕' : (p.direction === 'in' ? '▲' : '▼');
+      const cls = p.dropped ? 'dropped' : (p.direction === 'in' ? 'in' : 'out');
+      return `<div class="pkt">
+        <span class="ts">${t}</span>
+        <span class="dir ${cls}">${dir}</span>
+        <span class="node">${p.origin || '—'}</span>
+        <span class="sku">${p.sku || '—'}</span>
+        <span class="action ${p.action}">${p.action || '—'}</span>
+        <span class="lat">${p.latency_ms}ms</span>
+        <span class="sz">${p.size}B</span>
+      </div>`;
+    }).join('');
+    if (autoScroll) log.scrollTop = 0;
+  } catch(e) {}
+}
+
+async function loadCommMap() {
+  try {
+    const r = await fetch('/api/comms-map');
+    const d = await r.json();
+    const edges = d.edges || {};
+    const el = document.getElementById('comm-map');
+    if (!Object.keys(edges).length) {
+      el.innerHTML = '<div style="color:#475569;font-size:13px">Sin comunicaciones registradas</div>';
+      return;
+    }
+    const sorted = Object.entries(edges).sort((a,b) => b[1]-a[1]);
+    el.innerHTML = sorted.map(([edge, cnt]) => `
+      <div class="edge">
+        <span class="ep">${edge}</span>
+        <span class="cnt">${cnt} paquetes</span>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function applyConfig() {
+  const patch = {
+    collaboration_pct: parseInt(document.getElementById('collab').value),
+    gen_rate:          parseFloat(document.getElementById('gen-rate').value),
+    drop_prob:         parseInt(document.getElementById('drop-prob').value) / 100,
+  };
+  const r = await fetch('/api/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(patch),
+  });
+  if (r.ok) showToast('Configuración aplicada', true);
+  else      showToast('Error al aplicar', false);
+}
+
+async function toggleOnline(val) {
+  const ep = val ? '/api/wakeup' : '/api/shutdown';
+  await fetch(ep, {method:'POST'});
+  showToast(val ? 'Nodo encendido' : 'Nodo apagado', val);
+}
+
+function showToast(msg, ok) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:20px;right:20px;padding:10px 18px;border-radius:8px;
+    font-size:13px;font-weight:600;color:#fff;z-index:999;
+    background:${ok ? '#16a34a' : '#dc2626'}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// Actualizar cada 1.5s
+setInterval(() => { loadStatus(); loadPackets(); loadCommMap(); }, 1500);
+loadStatus(); loadPackets(); loadCommMap();
+</script>
+</body>
+</html>

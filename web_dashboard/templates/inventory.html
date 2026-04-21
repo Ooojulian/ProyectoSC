@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario — {{ node_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#333}
+header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:18px}
+header nav a{color:#fff;text-decoration:none;margin-left:16px;opacity:.85;font-size:14px}
+header nav a:hover{opacity:1}
+.container{max-width:1200px;margin:24px auto;padding:0 16px}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.toolbar input,.toolbar select{padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:.15s}
+.btn-primary{background:#667eea;color:#fff}.btn-primary:hover{background:#5a6fd6}
+.btn-danger{background:#ef4444;color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-sm{padding:4px 10px;font-size:12px}
+.card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#f8f9fa;padding:10px 14px;text-align:left;font-weight:600;border-bottom:2px solid #e9ecef;white-space:nowrap}
+tbody td{padding:10px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tbody tr:hover{background:#fafafa}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-ropa{background:#dbeafe;color:#1e40af}
+.badge-accesorios{background:#fef3c7;color:#92400e}
+.badge-calzado{background:#d1fae5;color:#065f46}
+.badge-general{background:#f3f4f6;color:#6b7280}
+.stock-low{color:#dc2626;font-weight:700}
+.stock-ok{color:#16a34a}
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h2{margin-bottom:18px;font-size:16px;color:#667eea}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#555}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;color:#fff;font-size:13px;font-weight:600;z-index:200;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.success{background:#16a34a}
+.toast.error{background:#dc2626}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.summary-card{background:#fff;border-radius:8px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.07);text-align:center}
+.summary-card .val{font-size:26px;font-weight:700;color:#667eea}
+.summary-card .lbl{font-size:11px;color:#999;text-transform:uppercase;margin-top:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 Inventario — {{ node_name }}</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/inventory">Inventario</a>
+  </nav>
+</header>
+
+<div class="container">
+  <!-- Resumen -->
+  <div class="summary" id="summary">
+    <div class="summary-card"><div class="val" id="total-items">—</div><div class="lbl">Items</div></div>
+    <div class="summary-card"><div class="val" id="total-stock">—</div><div class="lbl">Unidades totales</div></div>
+    <div class="summary-card"><div class="val stock-low" id="low-stock-count">—</div><div class="lbl">Stock bajo (≤10)</div></div>
+    <div class="summary-card"><div class="val" id="total-cats">—</div><div class="lbl">Categorías</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="Buscar por nombre o SKU…" style="flex:1;min-width:200px">
+    <select id="filter-cat">
+      <option value="">Todas las categorías</option>
+      <option value="ropa">Ropa</option>
+      <option value="accesorios">Accesorios</option>
+      <option value="calzado">Calzado</option>
+      <option value="general">General</option>
+    </select>
+    <button class="btn btn-primary" onclick="openModal()">+ Nuevo item</button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th><th>Nombre</th><th>Categoría</th>
+          <th>Stock</th><th>Precio (COP)</th><th>Descripción</th>
+          <th>Actualizado</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="items-body">
+        <tr><td colspan="8" style="text-align:center;padding:24px;color:#999">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h2 id="modal-title">Nuevo item</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>SKU *</label>
+        <input id="f-sku" placeholder="CAM-001">
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="f-cat">
+          <option value="ropa">Ropa</option>
+          <option value="accesorios">Accesorios</option>
+          <option value="calzado">Calzado</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Nombre *</label>
+      <input id="f-name" placeholder="Chaqueta Vintage">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input id="f-qty" type="number" min="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Precio (COP)</label>
+        <input id="f-price" type="number" min="0" value="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción</label>
+      <textarea id="f-desc" rows="2" placeholder="Descripción opcional…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="background:#f3f4f6" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let items = [];
+let editingSku = null;
+
+async function loadItems() {
+  const cat = document.getElementById('filter-cat').value;
+  const url = '/api/items' + (cat ? `?category=${cat}` : '');
+  const res = await fetch(url);
+  items = await res.json();
+  renderTable(items);
+  updateSummary(items);
+}
+
+function updateSummary(data) {
+  document.getElementById('total-items').textContent = data.length;
+  document.getElementById('total-stock').textContent = data.reduce((s,i) => s + i.quantity, 0);
+  document.getElementById('low-stock-count').textContent = data.filter(i => i.quantity <= 10).length;
+  const cats = new Set(data.map(i => i.category));
+  document.getElementById('total-cats').textContent = cats.size;
+}
+
+function renderTable(data) {
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = q ? data.filter(i =>
+    i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)
+  ) : data;
+
+  const tbody = document.getElementById('items-body');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#999">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(i => `
+    <tr>
+      <td><code>${i.sku}</code></td>
+      <td><strong>${i.name}</strong></td>
+      <td><span class="badge badge-${i.category}">${i.category}</span></td>
+      <td class="${i.quantity <= 10 ? 'stock-low' : 'stock-ok'}">${i.quantity}</td>
+      <td>$${Number(i.price).toLocaleString('es-CO')}</td>
+      <td style="color:#777;font-size:12px">${i.description || '—'}</td>
+      <td style="font-size:11px;color:#999">${fmtDate(i.updated_at)}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="editItem('${i.sku}')">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteItem('${i.sku}','${i.name}')">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(parseFloat(ts) * 1000).toLocaleString('es-CO', {
+    dateStyle:'short', timeStyle:'short'
+  });
+}
+
+function openModal(sku) {
+  editingSku = sku || null;
+  document.getElementById('modal-title').textContent = sku ? 'Editar item' : 'Nuevo item';
+  if (sku) {
+    const item = items.find(i => i.sku === sku);
+    document.getElementById('f-sku').value   = item.sku;
+    document.getElementById('f-sku').disabled = true;
+    document.getElementById('f-name').value  = item.name;
+    document.getElementById('f-cat').value   = item.category;
+    document.getElementById('f-qty').value   = item.quantity;
+    document.getElementById('f-price').value = item.price;
+    document.getElementById('f-desc').value  = item.description || '';
+  } else {
+    document.getElementById('f-sku').value   = '';
+    document.getElementById('f-sku').disabled = false;
+    document.getElementById('f-name').value  = '';
+    document.getElementById('f-cat').value   = 'ropa';
+    document.getElementById('f-qty').value   = '0';
+    document.getElementById('f-price').value = '0';
+    document.getElementById('f-desc').value  = '';
+  }
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('open');
+  editingSku = null;
+}
+
+async function saveItem() {
+  const data = {
+    sku:         document.getElementById('f-sku').value.trim(),
+    name:        document.getElementById('f-name').value.trim(),
+    category:    document.getElementById('f-cat').value,
+    quantity:    parseInt(document.getElementById('f-qty').value) || 0,
+    price:       parseFloat(document.getElementById('f-price').value) || 0,
+    description: document.getElementById('f-desc').value.trim(),
+  };
+  if (!data.sku || !data.name) { toast('SKU y nombre son requeridos', 'error'); return; }
+
+  const method = editingSku ? 'PUT' : 'POST';
+  const url    = editingSku ? `/api/items/${editingSku}` : '/api/items';
+  const res    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  const json   = await res.json();
+  if (!res.ok) { toast(json.error || 'Error', 'error'); return; }
+  toast(editingSku ? 'Item actualizado' : 'Item creado', 'success');
+  closeModal();
+  loadItems();
+}
+
+function editItem(sku) { openModal(sku); }
+
+async function deleteItem(sku, name) {
+  if (!confirm(`¿Eliminar "${name}" (${sku})?`)) return;
+  const res  = await fetch(`/api/items/${sku}`, { method: 'DELETE' });
+  const json = await res.json();
+  if (!res.ok) { toast(json.error || 'Error', 'error'); return; }
+  toast(`${name} eliminado`, 'success');
+  loadItems();
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+document.getElementById('search').addEventListener('input', () => renderTable(items));
+document.getElementById('filter-cat').addEventListener('change', loadItems);
+document.getElementById('modal-bg').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+loadItems();
+setInterval(loadItems, 10000);
+</script>
+</body>
+</html>

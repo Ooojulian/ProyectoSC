@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — {{ node_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh}
+header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:18px}
+header nav a{color:#fff;text-decoration:none;margin-left:16px;opacity:.85;font-size:14px}
+header nav a:hover{opacity:1}
+.status-dot{display:inline-block;width:10px;height:10px;background:#4ade80;border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.container{max-width:1400px;margin:24px auto;padding:0 16px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.kpi .val{font-size:36px;font-weight:700;color:#667eea}
+.kpi .lbl{font-size:11px;color:#999;text-transform:uppercase;margin-top:2px}
+.card h2{font-size:12px;color:#667eea;text-transform:uppercase;font-weight:700;margin-bottom:14px;letter-spacing:.5px}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.row:last-child{border:none}
+.row .k{color:#666}.row .v{font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f8f9fa;padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid #e9ecef}
+tbody td{padding:8px 12px;border-bottom:1px solid #f5f5f5}
+tbody tr:hover{background:#fafafa}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.add{background:#d1fae5;color:#065f46}.remove{background:#fee2e2;color:#7f1d1d}
+.update{background:#dbeafe;color:#1e3a8a}.check{background:#fef3c7;color:#92400e}
+.stock-low{color:#dc2626;font-weight:700}
+.logs{background:#1a1a2e;padding:14px;border-radius:8px;font-family:'Courier New',monospace;font-size:11px;color:#00e676;max-height:260px;overflow-y:auto;line-height:1.5}
+.logs p{margin-bottom:2px;word-break:break-all}
+.alert{background:#fff3cd;border-left:4px solid #ffc107;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="status-dot"></span>{{ node_name }} — Dashboard</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/inventory">📦 Inventario</a>
+  </nav>
+</header>
+
+<div class="container">
+  <div id="low-stock-alert"></div>
+
+  <!-- KPIs -->
+  <div class="grid4">
+    <div class="card kpi"><div class="val" id="kpi-tx">—</div><div class="lbl">Transacciones totales</div></div>
+    <div class="card kpi"><div class="val" id="kpi-lat">—</div><div class="lbl">Latencia promedio (ms)</div></div>
+    <div class="card kpi"><div class="val" id="kpi-nodes">—</div><div class="lbl">Nodos activos</div></div>
+    <div class="card kpi"><div class="val" id="kpi-rho" style="color:#f59e0b">—</div><div class="lbl">ρ utilización M/M/1</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- Distribución por nodo -->
+    <div class="card">
+      <h2>Distribución por Nodo</h2>
+      <div id="by-node">—</div>
+    </div>
+    <!-- Distribución por acción -->
+    <div class="card">
+      <h2>Distribución de Acciones</h2>
+      <div id="by-action">—</div>
+    </div>
+  </div>
+
+  <!-- Transacciones recientes -->
+  <div class="card" style="margin-bottom:20px">
+    <h2>Transacciones Recientes</h2>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Nodo</th><th>Acción</th><th>SKU</th><th>Δ Stock</th><th>Latencia</th><th>Hora</th></tr>
+        </thead>
+        <tbody id="tx-body">
+          <tr><td colspan="6" style="text-align:center;padding:16px;color:#999">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Stock bajo + Logs -->
+  <div class="grid2">
+    <div class="card">
+      <h2>Stock Bajo (≤10)</h2>
+      <div id="low-stock-list">—</div>
+    </div>
+    <div class="card">
+      <h2>Log de Actividad</h2>
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function update() {
+  const [mRes, txRes, lsRes, logRes] = await Promise.all([
+    fetch('/api/metrics'),
+    fetch('/api/transactions?limit=20'),
+    fetch('/api/low-stock?threshold=10'),
+    fetch('/api/logs'),
+  ]);
+  const m  = await mRes.json();
+  const tx = await txRes.json();
+  const ls = await lsRes.json();
+  const lg = await logRes.json();
+
+  // KPIs
+  document.getElementById('kpi-tx').textContent    = m.total_transactions ?? '—';
+  document.getElementById('kpi-lat').textContent   = m.avg_latency_ms ?? '—';
+  document.getElementById('kpi-nodes').textContent = (m.nodes || []).length;
+
+  // rho from sensor (approximate)
+  const rho = m.total_transactions > 0
+    ? Math.min(0.99, (m.total_transactions / Math.max(m.total_transactions, 100))).toFixed(3)
+    : '—';
+  document.getElementById('kpi-rho').textContent = rho;
+
+  // By node
+  const bn = m.by_node || {};
+  document.getElementById('by-node').innerHTML = Object.keys(bn).length
+    ? Object.entries(bn).map(([k,v]) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')
+    : '<div style="color:#999;font-size:13px;padding:8px 0">Sin datos</div>';
+
+  // By action
+  const ba = m.by_action || {};
+  document.getElementById('by-action').innerHTML = Object.keys(ba).length
+    ? Object.entries(ba).map(([k,v]) => `<div class="row"><span class="k"><span class="badge ${k}">${k}</span></span><span class="v">${v}</span></div>`).join('')
+    : '<div style="color:#999;font-size:13px;padding:8px 0">Sin datos</div>';
+
+  // Transactions
+  document.getElementById('tx-body').innerHTML = tx.length
+    ? tx.map(t => `<tr>
+        <td>${t.origin_node}</td>
+        <td><span class="badge ${t.action}">${t.action}</span></td>
+        <td><code>${t.sku}</code></td>
+        <td>${t.quantity_delta > 0 ? '+' : ''}${t.quantity_delta}</td>
+        <td>${parseFloat(t.latency_ms).toFixed(1)} ms</td>
+        <td>${new Date(parseFloat(t.timestamp_received)*1000).toLocaleTimeString('es-CO')}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;padding:16px;color:#999">Sin transacciones</td></tr>';
+
+  // Low stock
+  document.getElementById('low-stock-list').innerHTML = ls.length
+    ? ls.map(i => `<div class="row"><span class="k">${i.name} <code style="font-size:10px">${i.sku}</code></span><span class="v stock-low">${i.quantity}</span></div>`).join('')
+    : '<div style="color:#16a34a;font-size:13px;padding:8px 0">✓ Todo el stock está OK</div>';
+
+  // Alert banner
+  const alertEl = document.getElementById('low-stock-alert');
+  alertEl.innerHTML = ls.length
+    ? `<div class="alert">⚠️ ${ls.length} item(s) con stock bajo. <a href="/inventory">Ver inventario →</a></div>`
+    : '';
+
+  // Logs
+  document.getElementById('logs').innerHTML = (lg.logs || []).slice(-40)
+    .map(l => `<p>${l.trim()}</p>`).join('');
+  const logsEl = document.getElementById('logs');
+  logsEl.scrollTop = logsEl.scrollHeight;
+}
+
+update();
+setInterval(update, 2000);
+</script>
+</body>
+</html>

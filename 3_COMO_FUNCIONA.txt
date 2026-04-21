@@ -1,0 +1,99 @@
+================================================================
+  COMO FUNCIONA EL SISTEMA - REFERENCIA RAPIDA
+================================================================
+
+ARQUITECTURA
+----------------------------------------------------------------
+  Julian (Node-1, Maestro)
+    │
+    ├── provisioner.py   → Espera conexiones TCP, envía código
+    ├── sensor_node.py   → Genera/recibe eventos UDP broadcast
+    ├── web_dashboard/   → Dashboard en :5000
+    └── control_panel.py → Panel de control en :5001
+
+  Compañero (Node-2, Node-3...)
+    │
+    ├── [recibe todo del maestro vía client_bootstrap.py]
+    ├── sensor_node.py   → Genera/recibe eventos UDP broadcast
+    ├── web_dashboard/   → Dashboard en :5000
+    └── control_panel.py → Panel de control en :5001
+
+FLUJO DE DATOS
+----------------------------------------------------------------
+  1. Cada nodo genera eventos aleatorios (agregar/quitar items)
+  2. Los emite por UDP broadcast a toda la red
+  3. Todos los demás nodos los reciben y guardan en su BD local
+  4. BATMAN-adv enruta los paquetes por la mejor ruta
+  5. Resultado: todos los nodos tienen el mismo inventario
+     sin que exista un servidor central
+
+FLUJO DE PROVISIONING (cuando llega un compañero)
+----------------------------------------------------------------
+  Compañero ejecuta: python3 client_bootstrap.py
+    │
+    ▼
+  Escucha broadcast UDP del maestro
+    │
+    ▼
+  Conecta TCP a 192.168.200.101:12346
+    │
+    ▼
+  Recibe de Julian:
+    - ZIP con todo el código Python
+    - Base de datos SQLite actual
+    - Config: nombre (Node-2), rol (replica), IP (192.168.200.102)
+    │
+    ▼
+  Instala Flask, extrae código, guarda config
+    │
+    ▼
+  Arranca sensor_node.py + app.py + control_panel.py
+
+RED BATMAN-ADV
+----------------------------------------------------------------
+  Protocolo: IBSS (Ad-Hoc WiFi) + BATMAN-adv routing
+  SSID: ProyectoSC
+  Canal: 6 (2.4 GHz)
+  Subred: 192.168.200.0/24
+
+  BATMAN calcula rutas automáticamente. Si un nodo cae,
+  la red se re-enruta sola por los nodos restantes.
+
+SCRIPTS PRINCIPALES
+----------------------------------------------------------------
+  master_node.py         → Arranca TODO en el nodo de Julian
+  client_bootstrap.py    → Nodo nuevo se auto-configura
+  provisioner.py         → Envía código/BD a nodos nuevos
+  sensor_node.py         → Genera y recibe eventos UDP
+  web_dashboard/app.py   → Dashboard Flask
+
+SCRIPTS BASH
+----------------------------------------------------------------
+  scripts/setup_adhoc_now.sh  → Levanta red Ad-Hoc (Julian)
+  scripts/stop_batman.sh      → Apaga toda la configuración mesh
+
+PUERTOS
+----------------------------------------------------------------
+  UDP 12345  → Eventos del inventario (todos los nodos)
+  TCP 12346  → Provisioning (solo maestro)
+  TCP 5000   → Dashboard web (todos los nodos)
+  TCP 5001   → Panel de control (todos los nodos)
+
+VARIABLES DE ENTORNO (para ajustar comportamiento)
+----------------------------------------------------------------
+  NODE_NAME="Node-1"    Nombre del nodo
+  GEN_RATE=1.0          Eventos por segundo (default 1.0)
+  DROP_PROB=0.0         Simular pérdida de paquetes (0.0-1.0)
+  PAYLOAD_SIZE=0        Bytes extra por paquete (para pruebas)
+  BAT0_IP="..."         IP en la red BATMAN
+
+METRICAS QUE MUESTRA EL DASHBOARD
+----------------------------------------------------------------
+  rho (ρ)    = Utilización del sistema (λ/μ), ideal < 0.8
+  L(q)       = Paquetes en cola
+  W(q)       = Tiempo promedio en cola
+  lat (ms)   = Latencia promedio de procesamiento
+  PLR        = Packet Loss Rate (paquetes perdidos)
+  sent/recv  = Eventos enviados/recibidos
+
+================================================================

@@ -1,0 +1,116 @@
+================================================================
+  JULIAN - LO QUE DEBES HACER TU (NODO MAESTRO)
+================================================================
+
+TU ROL: Encender la red y provisionar a tus compañeros.
+        Ellos solo instalan BATMAN, tú haces el resto.
+
+================================================================
+PASO 1 - LEVANTAR LA RED MESH (solo una vez)
+================================================================
+
+Ejecuta en tu terminal:
+
+    sudo bash /home/julian/ProyectoSC/scripts/setup_adhoc_now.sh
+
+Esto hace:
+  - Desconecta el WiFi normal
+  - Pone la tarjeta en modo Ad-Hoc (red directa entre PCs)
+  - Crea la red "ProyectoSC" en canal 6
+  - Asigna IP 192.168.200.101 a tu PC en la red BATMAN
+
+Verifica que funcionó:
+    sudo batctl n        → muestra nodos vecinos (vacío si eres el primero)
+    ip addr show bat0    → debe mostrar 192.168.200.101
+
+
+================================================================
+PASO 2 - INICIAR EL NODO MAESTRO
+================================================================
+
+    cd /home/julian/ProyectoSC
+    NODE_NAME="Node-1" BAT0_IP="192.168.200.101" python3 master_node.py
+
+Esto arranca automáticamente:
+  - Provisioner (espera conexiones de compañeros en puerto TCP 12346)
+  - Sensor de eventos UDP
+  - Dashboard web en http://localhost:5000
+  - Panel de control en http://localhost:5001
+
+Deja esta terminal abierta y corriendo.
+
+
+================================================================
+PASO 3 - ESPERAR QUE TUS COMPAÑEROS SE CONECTEN
+================================================================
+
+Cuando un compañero ejecute client_bootstrap.py en su PC:
+  - Tu PC detecta la conexión automáticamente
+  - Le envía TODO: código, base de datos, configuración
+  - Le asigna nombre (Node-2, Node-3...) e IP automáticamente
+  - El nodo del compañero arranca solo
+
+Verás en tu terminal algo como:
+  [Provisioner] Conexión entrante de 192.168.200.102
+  [Provisioner] Asignado Node-2 rol=replica ip=192.168.200.102
+  [Provisioner] Provisioning completo para Node-2
+
+Para ver nodos conectados a la red BATMAN:
+    sudo batctl n
+
+
+================================================================
+PASO 4 - MONITOREAR LA RED
+================================================================
+
+Dashboard de este nodo:
+    http://localhost:5000
+
+Ver logs en vivo:
+    tail -f /home/julian/ProyectoSC/logs/master.log
+    tail -f /home/julian/ProyectoSC/logs/sensor.log
+
+Ver todos los nodos en la red BATMAN:
+    watch -n 2 'sudo batctl n'
+
+Estadísticas BATMAN:
+    sudo batctl o
+
+
+================================================================
+SI ALGO FALLA - COMANDOS MANUALES
+================================================================
+
+Si setup_adhoc_now.sh falla, hazlo a mano:
+
+    sudo nmcli device disconnect wlo1
+    sudo ip link set wlo1 down
+    sudo iw wlo1 set type ibss
+    sudo ip link set wlo1 up
+    sudo iw wlo1 ibss join ProyectoSC 6
+    sudo ip addr flush dev bat0
+    sudo ip addr add 192.168.200.101/24 dev bat0
+
+Si bat0 no existe:
+    sudo modprobe batman-adv
+    sudo ip link add name bat0 type batadv
+    sudo ip link set wlo1 master bat0
+    sudo ip link set bat0 up
+
+Para detener todo y reiniciar:
+    pkill -f master_node.py
+    pkill -f sensor_node.py
+    pkill -f app.py
+    pkill -f control_panel.py
+    sudo bash /home/julian/ProyectoSC/scripts/stop_batman.sh
+
+================================================================
+IPs DE LA RED
+================================================================
+
+  Tu PC  (Node-1, Maestro):   192.168.200.101
+  Compañero 1 (Node-2):       192.168.200.102
+  Compañero 2 (Node-3):       192.168.200.103
+  Compañero 3 (Node-4):       192.168.200.104
+
+================================================================

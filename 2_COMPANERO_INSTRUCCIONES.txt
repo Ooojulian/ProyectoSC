@@ -1,0 +1,90 @@
+================================================================
+  INSTRUCCIONES PARA COMPAÑEROS (NODOS NUEVOS)
+================================================================
+
+Lo único que necesitas instalar TU es BATMAN-adv.
+El resto (código, configuración, base de datos) lo recibe
+automáticamente de la PC de Julian.
+
+================================================================
+PASO 1 - INSTALAR BATMAN-ADV (solo una vez)
+================================================================
+
+    sudo apt install -y batctl iw
+
+Verificar que está instalado:
+    batctl -v
+
+
+================================================================
+PASO 2 - CONECTAR A LA RED MESH
+================================================================
+
+Asegúrate de estar cerca de la PC de Julian.
+
+Ejecuta estos comandos (reemplaza wlo1 si tu interfaz WiFi
+tiene otro nombre — verifica con: ip link show):
+
+    sudo nmcli device disconnect wlo1
+    sudo ip link set wlo1 down
+    sudo iw wlo1 set type ibss
+    sudo ip link set wlo1 up
+    sudo iw wlo1 ibss join ProyectoSC 6
+    sudo modprobe batman-adv
+    sudo ip link add name bat0 type batadv
+    sudo ip link set wlo1 master bat0
+    sudo ip link set bat0 up
+
+Verifica que estás en la red:
+    iw wlo1 info    → debe mostrar ssid: ProyectoSC
+
+
+================================================================
+PASO 3 - RECIBIR TODO DE JULIAN AUTOMATICAMENTE
+================================================================
+
+Copia solo este archivo a tu PC (por USB o similar) y ejecuta:
+
+    python3 client_bootstrap.py
+
+Si sabes la IP de Julian (192.168.200.101), puedes forzarla:
+
+    python3 client_bootstrap.py 192.168.200.101
+
+Esto hace automáticamente:
+  - Encuentra la PC de Julian en la red
+  - Descarga todo el código del proyecto
+  - Recibe la base de datos sincronizada
+  - Recibe tu configuración personalizada (Node-2, Node-3...)
+  - Instala Flask si no está
+  - Arranca todos los servicios solo
+
+Cuando termine verás:
+  [Bootstrap] Provisioning completo. Arrancando nodo...
+  [Bootstrap] Todos los servicios lanzados.
+
+
+================================================================
+PASO 4 - VERIFICAR QUE FUNCIONA
+================================================================
+
+Tu dashboard estará en:
+  http://192.168.200.10X:5000   (X = tu número de nodo)
+
+Ping a Julian:
+  ping 192.168.200.101
+
+Si no hay ping, revisa que estás en la misma red Ad-Hoc:
+  iw wlo1 info    → debe mostrar ProyectoSC
+
+================================================================
+NOTA: Si tu interfaz WiFi NO se llama wlo1
+================================================================
+
+Verifica el nombre real con:
+    ip link show
+
+Busca la interfaz que empiece con w (wlan0, wlp2s0, etc.)
+y reemplaza wlo1 en todos los comandos del PASO 2.
+
+================================================================

@@ -6,7 +6,7 @@ Persiste en JSON local. Leída por sensor, panel y provisioner.
 import json, os, threading
 from pathlib import Path
 
-CONFIG_PATH = Path(os.getenv("NODE_CONFIG_PATH", "/home/julian/ProyectoSC/data/node_config.json"))
+CONFIG_PATH = Path(os.getenv("NODE_CONFIG_PATH", os.path.join(os.path.expanduser("~"), "ProyectoSC", "data", "node_config.json")))
 
 DEFAULTS = {
     "node_name":          os.getenv("NODE_NAME", "Node-1"),

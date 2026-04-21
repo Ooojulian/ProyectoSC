@@ -18,12 +18,13 @@ try:
 except ImportError:
     _HAS_CP = False
 
-Path("/home/julian/ProyectoSC/logs").mkdir(parents=True, exist_ok=True)
+_BASE = Path(os.path.dirname(os.path.abspath(__file__)))
+(_BASE / "logs").mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("/home/julian/ProyectoSC/logs/sensor.log"),
+        logging.FileHandler(str(_BASE / "logs" / "sensor.log")),
         logging.StreamHandler(),
     ],
 )

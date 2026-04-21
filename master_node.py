@@ -15,7 +15,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [Master] %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler("/home/julian/ProyectoSC/logs/master.log"),
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "master.log")),
         logging.StreamHandler(),
     ],
 )

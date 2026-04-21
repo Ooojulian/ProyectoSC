@@ -15,7 +15,7 @@ class LocalTest:
     def __init__(self, num_nodes=4):
         self.num_nodes = num_nodes
         self.processes = []
-        self.base_dir = Path("/home/julian/ProyectoSC")
+        self.base_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 
     def setup(self):
         """Preparar directorios y archivos"""

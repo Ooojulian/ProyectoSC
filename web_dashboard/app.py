@@ -15,7 +15,7 @@ import uuid
 
 app = Flask(__name__)
 app.config['NODE_NAME'] = os.getenv('NODE_NAME', 'Node-1')
-app.config['LOG_FILE']  = '/home/julian/ProyectoSC/logs/sensor.log'
+app.config['LOG_FILE']  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "sensor.log")
 
 db.init_db()
 

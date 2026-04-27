@@ -140,7 +140,7 @@ class SensorNode:
             return
 
         now     = time.time()
-        latency = (now - event.get("timestamp_created", now)) * 1000
+        latency = max(0, (now - event.get("timestamp_created", now)) * 1000)
 
         tx = {
             "message_id":         msg_id,

@@ -7,7 +7,7 @@
 set -e
 
 SSID="ProyectoSC"
-CHANNEL="6"
+CHANNEL="2437"   # canal 6 en MHz
 WIFI_IF="wlo1"
 BATMAN_IP="${1:-192.168.200.101}"
 NODE_NAME="${2:-Node-1}"

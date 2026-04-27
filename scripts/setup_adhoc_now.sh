@@ -29,14 +29,15 @@ fi
 # 2. Cargar modulo batman-adv
 modprobe batman-adv 2>/dev/null || true
 
-# 3. Desconectar del gestor de red
-echo "1. Desconectando WiFi normal..."
-nmcli device disconnect $WIFI_IF 2>/dev/null || true
+# 3. Detener NetworkManager para liberar la interfaz
+echo "1. Deteniendo NetworkManager..."
+systemctl stop NetworkManager
 sleep 2
 
 # 4. Bajar interfaz
 echo "2. Bajando interfaz WiFi..."
 ip link set $WIFI_IF down
+sleep 1
 
 # 5. Modo IBSS (Ad-Hoc)
 echo "3. Configurando modo Ad-Hoc..."

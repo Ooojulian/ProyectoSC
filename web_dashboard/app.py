@@ -67,12 +67,23 @@ def _sync_from_master():
             if not existing:
                 db.create_item(item)
                 synced += 1
-            elif existing['quantity'] != item['quantity']:
-                db.update_item(item['sku'], {'quantity': item['quantity']})
+            elif existing['quantity'] != item['quantity'] or existing.get('name') != item.get('name'):
+                db.update_item(item['sku'], {k: item[k] for k in ('name','category','quantity','price','description') if k in item})
                 synced += 1
         return synced
     except Exception:
         return 0
+
+def _bg_sync_loop():
+    """Sync automático cada 5s cuando hay master_ip configurado."""
+    import threading
+    def loop():
+        while True:
+            time.sleep(5)
+            if _cfg.get("master_ip"):
+                _sync_from_master()
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
 
 
 app = Flask(__name__)
@@ -80,6 +91,7 @@ app.config['NODE_NAME'] = os.getenv('NODE_NAME', 'Node-1')
 app.config['LOG_FILE']  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "sensor.log")
 
 db.init_db()
+_bg_sync_loop()
 
 # ─── PÁGINAS ────────────────────────────────────────────────────────────────
 

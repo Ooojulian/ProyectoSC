@@ -133,12 +133,6 @@ class SensorNode:
             _log_pkt("in", origin, my_name, sku, action, size, 0, dropped=True)
             return
 
-        # Deduplicación
-        if _db.tx_exists(msg_id):
-            with self._lock:
-                self.stats["duplicates"] += 1
-            return
-
         now     = time.time()
         latency = max(0, (now - event.get("timestamp_created", now)) * 1000)
 
@@ -154,7 +148,12 @@ class SensorNode:
             "payload":            str(event.get("sensor_reading", "")),
         }
 
-        inserted = _db.insert_transaction(tx)
+        try:
+            inserted = _db.insert_transaction(tx)
+        except Exception as e:
+            self.logger.debug(f"DB insert failed: {e}")
+            return
+
         if inserted:
             with self._lock:
                 self.stats["received"] += 1
@@ -202,7 +201,10 @@ class SensorNode:
                     "payload":            str(event.get("sensor_reading", "")),
                 })
             except Exception as e:
-                self.logger.error(f"Emitter error: {e}")
+                if "database is locked" in str(e):
+                    self.logger.debug(f"Emitter DB busy: {e}")
+                else:
+                    self.logger.error(f"Emitter error: {e}")
 
             jitter = interval * 0.1
             time.sleep(interval + random.uniform(-jitter, jitter))

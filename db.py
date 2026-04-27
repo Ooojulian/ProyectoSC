@@ -11,22 +11,27 @@ from pathlib import Path
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.expanduser("~"), "ProyectoSC", "data", "inventory.db"))
 _local = threading.local()
+_db_lock = threading.Lock()
 
 
 def get_conn():
     if not hasattr(_local, "conn") or _local.conn is None:
-        _local.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        _local.conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
         _local.conn.row_factory = sqlite3.Row
         _local.conn.execute("PRAGMA journal_mode=WAL")
+        _local.conn.execute("PRAGMA synchronous=NORMAL")
         _local.conn.execute("PRAGMA foreign_keys=ON")
+        _local.conn.execute("PRAGMA busy_timeout=10000")
     return _local.conn
 
 
 def init_db():
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=10000")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS items (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,50 +93,52 @@ def init_db():
 
 
 def tx_exists(message_id: str) -> bool:
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT 1 FROM transactions WHERE message_id=?", (message_id,)
-    ).fetchone()
-    return row is not None
+    with _db_lock:
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT 1 FROM transactions WHERE message_id=?", (message_id,)
+        ).fetchone()
+        return row is not None
 
 
 def insert_transaction(tx: dict) -> bool:
     """Inserta transacción y actualiza stock. Retorna False si duplicado."""
-    conn = get_conn()
-    try:
-        conn.execute(
-            """INSERT INTO transactions
-               (message_id, origin_node, action, sku, quantity_delta,
-                timestamp_created, timestamp_received, latency_ms, payload)
-               VALUES (:message_id,:origin_node,:action,:sku,:quantity_delta,
-                       :timestamp_created,:timestamp_received,:latency_ms,:payload)""",
-            tx
-        )
-        # Actualizar stock
-        delta = tx.get("quantity_delta", 0)
-        if tx["action"] == "add":
+    with _db_lock:
+        conn = get_conn()
+        try:
             conn.execute(
-                "UPDATE items SET quantity=quantity+?, updated_at=unixepoch('now','subsec') WHERE sku=?",
-                (abs(delta), tx["sku"])
+                """INSERT INTO transactions
+                   (message_id, origin_node, action, sku, quantity_delta,
+                    timestamp_created, timestamp_received, latency_ms, payload)
+                   VALUES (:message_id,:origin_node,:action,:sku,:quantity_delta,
+                           :timestamp_created,:timestamp_received,:latency_ms,:payload)""",
+                tx
             )
-        elif tx["action"] == "remove":
+            # Actualizar stock
+            delta = tx.get("quantity_delta", 0)
+            if tx["action"] == "add":
+                conn.execute(
+                    "UPDATE items SET quantity=quantity+?, updated_at=unixepoch('now','subsec') WHERE sku=?",
+                    (abs(delta), tx["sku"])
+                )
+            elif tx["action"] == "remove":
+                conn.execute(
+                    "UPDATE items SET quantity=MAX(0,quantity-?), updated_at=unixepoch('now','subsec') WHERE sku=?",
+                    (abs(delta), tx["sku"])
+                )
+            # Upsert nodo
             conn.execute(
-                "UPDATE items SET quantity=MAX(0,quantity-?), updated_at=unixepoch('now','subsec') WHERE sku=?",
-                (abs(delta), tx["sku"])
+                """INSERT INTO nodes(name, last_seen, packets_received)
+                   VALUES(?,unixepoch('now','subsec'),1)
+                   ON CONFLICT(name) DO UPDATE SET
+                     last_seen=excluded.last_seen,
+                     packets_received=packets_received+1""",
+                (tx["origin_node"],)
             )
-        # Upsert nodo
-        conn.execute(
-            """INSERT INTO nodes(name, last_seen, packets_received)
-               VALUES(?,unixepoch('now','subsec'),1)
-               ON CONFLICT(name) DO UPDATE SET
-                 last_seen=excluded.last_seen,
-                 packets_received=packets_received+1""",
-            (tx["origin_node"],)
-        )
-        conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False  # duplicate
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # duplicate
 
 
 def get_items(category=None):

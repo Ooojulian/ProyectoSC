@@ -12,6 +12,23 @@ import db
 import node_config as _cfg
 import time
 import uuid
+import urllib.request
+import json as _json
+
+def _is_master():
+    return _cfg.get("role", "replica") == "master"
+
+def _master_url():
+    master_ip = _cfg.get("master_ip") or _cfg.get("bat0_ip")
+    return f"http://{master_ip}:5080"
+
+def _proxy_to_master(path, method="GET", body=None):
+    url = _master_url() + path
+    data = _json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, method=method,
+                                  headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return _json.loads(r.read())
 
 app = Flask(__name__)
 app.config['NODE_NAME'] = os.getenv('NODE_NAME', 'Node-1')
@@ -34,14 +51,29 @@ def inventory_page():
 @app.route('/api/items', methods=['GET'])
 def api_get_items():
     category = request.args.get('category')
-    return jsonify(db.get_items(category))
+    if not _is_master():
+        try:
+            path = '/api/items' + (f'?category={category}' if category else '')
+            return jsonify(_proxy_to_master(path))
+        except Exception:
+            pass
+    resp = jsonify(db.get_items(category))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route('/api/items/<sku>', methods=['GET'])
 def api_get_item(sku):
+    if not _is_master():
+        try:
+            return jsonify(_proxy_to_master(f'/api/items/{sku}'))
+        except Exception:
+            pass
     item = db.get_item(sku)
     if not item:
         abort(404, description="Item no encontrado")
-    return jsonify(item)
+    resp = jsonify(item)
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route('/api/items', methods=['POST'])
 def api_create_item():
@@ -50,6 +82,11 @@ def api_create_item():
     for f in required:
         if not data.get(f):
             abort(400, description=f"Campo requerido: {f}")
+    if not _is_master():
+        try:
+            return jsonify(_proxy_to_master('/api/items', method='POST', body=data)), 201
+        except Exception:
+            pass
     if db.get_item(data['sku']):
         abort(409, description="SKU ya existe")
     db.create_item(data)
@@ -57,14 +94,24 @@ def api_create_item():
 
 @app.route('/api/items/<sku>', methods=['PUT'])
 def api_update_item(sku):
+    data = request.get_json(force=True)
+    if not _is_master():
+        try:
+            return jsonify(_proxy_to_master(f'/api/items/{sku}', method='PUT', body=data))
+        except Exception:
+            pass
     if not db.get_item(sku):
         abort(404, description="Item no encontrado")
-    data = request.get_json(force=True)
     db.update_item(sku, data)
     return jsonify(db.get_item(sku))
 
 @app.route('/api/items/<sku>', methods=['DELETE'])
 def api_delete_item(sku):
+    if not _is_master():
+        try:
+            return jsonify(_proxy_to_master(f'/api/items/{sku}', method='DELETE'))
+        except Exception:
+            pass
     if not db.get_item(sku):
         abort(404, description="Item no encontrado")
     db.delete_item(sku)
@@ -110,7 +157,9 @@ def api_metrics():
     metrics['node_name'] = app.config['NODE_NAME']
     metrics['timestamp'] = time.time()
     metrics['status'] = 'online'
-    return jsonify(metrics)
+    resp = jsonify(metrics)
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route('/api/low-stock')
 def api_low_stock():

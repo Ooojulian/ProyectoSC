@@ -71,6 +71,8 @@ tbody tr:hover{background:#fafafa}
       <option value="servidor">🖥 Servidor — replica BD, sirve lecturas</option>
       <option value="cliente">👤 Cliente — solo lectura</option>
     </select>
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Nombre del nodo</label>
+    <input id="node-name-input" type="text" placeholder="ej: Node-2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:14px">
     <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">IP del nodo Admin/Master <span style="font-weight:400;color:#999">(dejar vacío si este ES el admin)</span></label>
     <input id="master-ip-input" type="text" placeholder="ej: 192.168.200.101" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:18px">
     <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -84,6 +86,7 @@ tbody tr:hover{background:#fafafa}
 function openRoleModal(){
   fetch('/api/role').then(r=>r.json()).then(d=>{
     document.getElementById('role-select').value = ['admin','servidor','cliente'].includes(d.role) ? d.role : 'admin';
+    document.getElementById('node-name-input').value = d.node_name || '';
     document.getElementById('master-ip-input').value = d.master_ip || '';
     document.getElementById('role-modal').style.display='flex';
   });
@@ -92,7 +95,8 @@ function closeRoleModal(){ document.getElementById('role-modal').style.display='
 async function saveRole(){
   const role = document.getElementById('role-select').value;
   const master_ip = document.getElementById('master-ip-input').value.trim();
-  const r = await fetch('/api/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,master_ip})});
+  const node_name = document.getElementById('node-name-input').value.trim();
+  const r = await fetch('/api/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,master_ip,node_name})});
   const d = await r.json();
   if(r.ok){
     const msg = document.getElementById('role-msg');

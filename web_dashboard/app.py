@@ -131,7 +131,10 @@ def api_set_role():
     if new_role not in ROLES:
         abort(400, description=f"Rol inválido. Opciones: {', '.join(list(ROLES.keys())[:3])}")
     master_ip = data.get('master_ip', _cfg.get('master_ip', ''))
-    _cfg.update({'role': new_role, 'master_ip': master_ip})
+    patch = {'role': new_role, 'master_ip': master_ip}
+    if data.get('node_name', '').strip():
+        patch['node_name'] = data['node_name'].strip()
+    _cfg.update(patch)
     # Si pasa a servidor/cliente, sincroniza BD del master
     synced = 0
     if not ROLES[new_role]['is_authority'] and master_ip:

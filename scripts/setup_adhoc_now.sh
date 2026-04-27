@@ -1,56 +1,90 @@
 #!/bin/bash
 # Configurar red Ad-Hoc + BATMAN ahora mismo
+# Uso: sudo bash setup_adhoc_now.sh [IP] [NOMBRE_NODO]
+#   IP por defecto: 192.168.200.101
+#   Ejemplo nodo 2: sudo bash setup_adhoc_now.sh 192.168.200.102 Node-2
 
 set -e
 
 SSID="ProyectoSC"
 CHANNEL="6"
 WIFI_IF="wlo1"
-BATMAN_IP="192.168.200.101"
+BATMAN_IP="${1:-192.168.200.101}"
+NODE_NAME="${2:-Node-1}"
 
-echo "🔧 Configurando red Ad-Hoc + BATMAN..."
-echo "   Interfaz: $WIFI_IF"
-echo "   SSID: $SSID"
-echo "   Canal: $CHANNEL"
+echo "Configurando red Ad-Hoc + BATMAN..."
+echo "   Interfaz:  $WIFI_IF"
+echo "   SSID:      $SSID"
+echo "   Canal:     $CHANNEL"
 echo "   IP BATMAN: $BATMAN_IP"
+echo "   Nodo:      $NODE_NAME"
 echo ""
 
-# 1. Desconectar del gestor de red
-echo "1️⃣ Desconectando WiFi normal..."
+# 1. Instalar batctl si falta
+if ! command -v batctl &>/dev/null; then
+    echo "Instalando batctl..."
+    apt-get install -y batctl 2>/dev/null || true
+fi
+
+# 2. Cargar modulo batman-adv
+modprobe batman-adv 2>/dev/null || true
+
+# 3. Desconectar del gestor de red
+echo "1. Desconectando WiFi normal..."
 nmcli device disconnect $WIFI_IF 2>/dev/null || true
 sleep 2
 
-# 2. Bajar interfaz wlo1
-echo "2️⃣ Bajando interfaz WiFi..."
+# 4. Bajar interfaz
+echo "2. Bajando interfaz WiFi..."
 ip link set $WIFI_IF down
 
-# 3. Poner en modo IBSS (Ad-Hoc)
-echo "3️⃣ Configurando modo Ad-Hoc..."
+# 5. Modo IBSS (Ad-Hoc)
+echo "3. Configurando modo Ad-Hoc..."
 iw $WIFI_IF set type ibss
 ip link set $WIFI_IF up
 
-# 4. Crear red Ad-Hoc
-echo "4️⃣ Creando red Ad-Hoc ProyectoSC..."
+# 6. Unirse a red Ad-Hoc
+echo "4. Creando red Ad-Hoc $SSID..."
 iw $WIFI_IF ibss join "$SSID" $CHANNEL
-
 sleep 2
 
-# 5. Quitar IP anterior de bat0
-echo "5️⃣ Configurando IP en BATMAN..."
-ip addr flush dev bat0
+# 7. Agregar wlo1 a batman si no está ya
+if command -v batctl &>/dev/null; then
+    batctl if add $WIFI_IF 2>/dev/null || true
+fi
+
+# 8. Configurar IP en bat0
+echo "5. Configurando IP $BATMAN_IP en bat0..."
+ip link set bat0 up 2>/dev/null || true
+ip addr flush dev bat0 2>/dev/null || true
 ip addr add $BATMAN_IP/24 dev bat0
 
+# 9. Guardar config en node_config.json
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CONFIG="$SCRIPT_DIR/data/node_config.json"
+if [ -f "$CONFIG" ]; then
+    python3 -c "
+import json, sys
+with open('$CONFIG') as f: c = json.load(f)
+c['bat0_ip'] = '$BATMAN_IP'
+c['node_name'] = '$NODE_NAME'
+with open('$CONFIG','w') as f: json.dump(c, f, indent=2)
+print('Config actualizada: bat0_ip=$BATMAN_IP node_name=$NODE_NAME')
+"
+fi
+
 echo ""
-echo "✅ Red Ad-Hoc + BATMAN configurados!"
-echo ""
-echo "Estado wlo1:"
-ip addr show $WIFI_IF | grep -E "inet|state"
+echo "Red Ad-Hoc + BATMAN configurados!"
 echo ""
 echo "Estado bat0:"
 ip addr show bat0 | grep -E "inet|state"
 echo ""
-echo "Nodos en la red Ad-Hoc:"
-iw $WIFI_IF station dump 2>/dev/null || echo "Esperando otros nodos..."
+echo "Vecinos WiFi:"
+iw $WIFI_IF station dump 2>/dev/null || echo "(esperando otros nodos...)"
 echo ""
-echo "Para iniciar el sensor ejecuta:"
-echo "  NODE_NAME='Node-1' python3 sensor_node.py"
+if command -v batctl &>/dev/null; then
+    echo "Vecinos BATMAN:"
+    batctl n 2>/dev/null || echo "(esperando...)"
+fi
+echo ""
+echo "Para iniciar: NODE_NAME='$NODE_NAME' python3 $SCRIPT_DIR/master_node.py"

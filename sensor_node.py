@@ -79,6 +79,7 @@ class SensorNode:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.bind((c["bat0_ip"], 0))
             raw = payload.encode()
             sock.sendto(raw, (c["broadcast_ip"], c["broadcast_port"]))
             sock.close()

@@ -174,6 +174,7 @@ def _handle_client(conn: socket.socket, addr):
 def _announce_loop(interval=5):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.bind((cfg.get("bat0_ip"), 0))
     port = cfg.get("provision_port", 12346)
     LOG.info(f"Anunciando maestro en broadcast:{port} cada {interval}s")
     while True:

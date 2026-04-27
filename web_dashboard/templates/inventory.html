@@ -56,8 +56,53 @@ tbody tr:hover{background:#fafafa}
   <nav>
     <a href="/">Dashboard</a>
     <a href="/inventory">Inventario</a>
+    <span id="role-badge" style="margin-left:16px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;background:rgba(255,255,255,0.2)">{{ role }}</span>
+    <button onclick="openRoleModal()" style="margin-left:8px;padding:3px 10px;border:1px solid rgba(255,255,255,0.5);background:transparent;color:#fff;border-radius:6px;cursor:pointer;font-size:12px">⚙ Cambiar rol</button>
   </nav>
 </header>
+
+<!-- Modal rol -->
+<div id="role-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <h3 style="margin-bottom:16px;font-size:16px">Configurar Rol del Nodo</h3>
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Rol</label>
+    <select id="role-select" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:14px">
+      <option value="admin">👑 Admin — puede todo</option>
+      <option value="servidor">🖥 Servidor — replica BD, sirve lecturas</option>
+      <option value="cliente">👤 Cliente — solo lectura</option>
+    </select>
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">IP del nodo Admin/Master <span style="font-weight:400;color:#999">(dejar vacío si este ES el admin)</span></label>
+    <input id="master-ip-input" type="text" placeholder="ej: 192.168.200.101" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:18px">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeRoleModal()" style="padding:8px 16px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer">Cancelar</button>
+      <button onclick="saveRole()" style="padding:8px 16px;background:#667eea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Guardar</button>
+    </div>
+    <p id="role-msg" style="margin-top:12px;font-size:13px;color:#16a34a;display:none"></p>
+  </div>
+</div>
+<script>
+function openRoleModal(){
+  fetch('/api/role').then(r=>r.json()).then(d=>{
+    document.getElementById('role-select').value = ['admin','servidor','cliente'].includes(d.role) ? d.role : 'admin';
+    document.getElementById('master-ip-input').value = d.master_ip || '';
+    document.getElementById('role-modal').style.display='flex';
+  });
+}
+function closeRoleModal(){ document.getElementById('role-modal').style.display='none'; }
+async function saveRole(){
+  const role = document.getElementById('role-select').value;
+  const master_ip = document.getElementById('master-ip-input').value.trim();
+  const r = await fetch('/api/role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,master_ip})});
+  const d = await r.json();
+  if(r.ok){
+    const msg = document.getElementById('role-msg');
+    msg.textContent = `Rol cambiado a "${d.role}"${d.synced_items>0?' — '+d.synced_items+' items sincronizados':''}`;
+    msg.style.display='block';
+    document.getElementById('role-badge').textContent = d.role;
+    setTimeout(()=>{ closeRoleModal(); location.reload(); },1200);
+  }
+}
+</script>
 
 <div class="container">
   <!-- Resumen -->
@@ -78,7 +123,10 @@ tbody tr:hover{background:#fafafa}
       <option value="calzado">Calzado</option>
       <option value="general">General</option>
     </select>
-    <button class="btn btn-primary" onclick="openModal()">+ Nuevo item</button>
+    <button class="btn btn-primary" id="btn-nuevo" onclick="openModal()">+ Nuevo item</button>
+  </div>
+  <div id="readonly-banner" style="display:none;background:#fef3c7;border-left:4px solid #f59e0b;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px">
+    ⚠️ Este nodo es <strong id="banner-role"></strong> — las modificaciones se envían al nodo Admin. <span id="sync-btn-wrap"><a href="#" onclick="syncNow()" style="color:#667eea;font-weight:600">Sincronizar ahora →</a></span>
   </div>
 
   <!-- Tabla -->
@@ -274,8 +322,27 @@ document.getElementById('modal-bg').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 
+async function syncNow(){
+  const r = await fetch('/api/sync', {method:'POST'});
+  const d = await r.json();
+  if(r.ok){ toast(`Sincronizado: ${d.synced_items} items actualizados`, 'success'); loadItems(); }
+  else { toast(d.error || 'Error sincronizando', 'error'); }
+}
+
+async function applyRoleUI(){
+  const r = await fetch('/api/role');
+  const d = await r.json();
+  const isAdmin = d.is_authority;
+  if(!isAdmin){
+    document.getElementById('readonly-banner').style.display='block';
+    document.getElementById('banner-role').textContent = d.role;
+    if(!d.master_ip) document.getElementById('sync-btn-wrap').style.display='none';
+  }
+}
+
 loadItems();
-setInterval(loadItems, 10000);
+applyRoleUI();
+setInterval(loadItems, 5000);
 </script>
 </body>
 </html>

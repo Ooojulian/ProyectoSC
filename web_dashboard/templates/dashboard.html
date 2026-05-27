@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ node_name }} — MESH CTRL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:   #00ff88;
+  --green2:  #00cc66;
+  --green3:  #009944;
+  --amber:   #ffaa00;
+  --red:     #ff3355;
+  --blue:    #00aaff;
+  --bg:      #020d07;
+  --bg2:     #05150c;
+  --bg3:     #081f10;
+  --border:  rgba(0,255,136,0.15);
+  --border2: rgba(0,255,136,0.08);
+  --glow:    0 0 12px rgba(0,255,136,0.4);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-disp: 'Orbitron', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--green);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* scanlines overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+  pointer-events: none; z-index: 9999;
+}
+/* vignette */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
+  pointer-events: none; z-index: 9998;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 22px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.hdr-left  { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 34px; height: 34px; border: 2px solid var(--green);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--glow); flex-shrink: 0; position: relative;
+}
+.logo::before {
+  content: ''; position: absolute;
+  width: 9px; height: 9px; background: var(--green); border-radius: 50%;
+  box-shadow: 0 0 8px var(--green), 0 0 16px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:.5} }
+.hdr-title { font-family: var(--font-disp); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-shadow: var(--glow); }
+.hdr-sub   { font-size: 9px; color: var(--green3); letter-spacing: 2px; margin-top: 2px; }
+.hdr-right { display: flex; align-items: center; gap: 10px; }
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border: 1px solid var(--border);
+  border-radius: 2px; background: rgba(0,255,136,0.04);
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--green2);
+}
+.blink {
+  width: 6px; height: 6px; background: var(--green); border-radius: 50%;
+  box-shadow: 0 0 6px var(--green); animation: blink 1.4s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.btn-off {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; padding: 5px 13px;
+  background: transparent; border: 1px solid rgba(255,51,85,0.5);
+  color: var(--red); cursor: pointer; border-radius: 2px; transition: all .2s;
+}
+.btn-off:hover { background: rgba(255,51,85,.1); border-color: var(--red); box-shadow: 0 0 10px rgba(255,51,85,.3); }
+
+/* ── TICKER ── */
+.ticker-wrap {
+  background: rgba(0,255,136,.03); border-bottom: 1px solid var(--border2);
+  height: 22px; display: flex; align-items: center; overflow: hidden;
+}
+.ticker-lbl {
+  font-family: var(--font-disp); font-size: 7px; letter-spacing: 2px; color: var(--green3);
+  padding: 0 12px; white-space: nowrap; border-right: 1px solid var(--border);
+  height: 100%; display: flex; align-items: center;
+}
+.ticker-scroll { display: flex; animation: scroll 28s linear infinite; white-space: nowrap; }
+.ticker-scroll span { font-size: 9px; color: var(--green3); padding: 0 28px; letter-spacing: 1px; }
+.ticker-scroll span::before { content: '◈ '; color: var(--green); opacity: .35; }
+@keyframes scroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* ── LAYOUT ── */
+.container { max-width: 1440px; margin: 0 auto; padding: 18px 18px; display: grid; gap: 14px; }
+.row-kpi  { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.row-main { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.row-bot  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .row-kpi,.row-main,.row-bot { grid-template-columns: 1fr; } }
+
+/* ── LATENCIA BARS ── */
+.lat-bar { display:flex; align-items:center; gap:8px; }
+.lat-track { flex:1; height:5px; background:rgba(0,255,136,.07); border-radius:3px; overflow:hidden; min-width:60px; }
+.lat-fill  { height:100%; border-radius:3px; transition:width .5s ease; }
+.dist-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:2px 8px; border-radius:2px; font-size:9px; font-family:var(--font-disp);
+  letter-spacing:1px; border:1px solid;
+}
+
+/* ── CARD ── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 2px; position: relative; overflow: hidden;
+  animation: fadeUp .4s ease both;
+}
+.card::before {
+  content: ''; position: absolute; top:0; left:0;
+  width: 3px; height: 100%;
+  background: linear-gradient(to bottom, var(--green), transparent); opacity:.4;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.card:nth-child(2) { animation-delay:.05s }
+.card:nth-child(3) { animation-delay:.1s }
+.card:nth-child(4) { animation-delay:.15s }
+
+.card-head {
+  padding: 9px 15px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-family: var(--font-disp); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--green3); }
+.card-ts    { font-size: 8px; color: rgba(0,255,136,.22); letter-spacing: 1px; }
+
+/* ── KPI ── */
+.kpi {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 2px; padding: 15px 18px; position: relative; overflow: hidden;
+  animation: fadeUp .4s ease both;
+}
+.kpi:nth-child(1){animation-delay:.04s} .kpi:nth-child(2){animation-delay:.08s}
+.kpi:nth-child(3){animation-delay:.12s} .kpi:nth-child(4){animation-delay:.16s}
+.kpi::after {
+  content: ''; position: absolute; bottom:0; right:0;
+  width: 55px; height: 55px;
+  background: radial-gradient(circle, rgba(0,255,136,.05) 0%, transparent 70%);
+}
+/* corner brackets */
+.kpi .c { position: absolute; width: 10px; height: 10px; border-color: rgba(0,255,136,.25); border-style: solid; }
+.kpi .tl { top:4px; left:4px;   border-width:1px 0 0 1px }
+.kpi .tr { top:4px; right:4px;  border-width:1px 1px 0 0 }
+.kpi .bl { bottom:4px; left:4px;  border-width:0 0 1px 1px }
+.kpi .br { bottom:4px; right:4px; border-width:0 1px 1px 0 }
+.kpi-lbl { font-size: 8px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--green3); margin-bottom: 9px; }
+.kpi-val { font-family: var(--font-disp); font-size: 34px; font-weight: 900; line-height: 1; color: var(--green); text-shadow: 0 0 18px rgba(0,255,136,.45); letter-spacing: -1px; }
+.kpi-val.amb { color:var(--amber); text-shadow:0 0 18px rgba(255,170,0,.45); }
+.kpi-val.blu { color:var(--blue);  text-shadow:0 0 18px rgba(0,170,255,.45); }
+.kpi-sub { font-size: 8px; color: var(--green3); margin-top: 4px; opacity: .55; }
+
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  font-family: var(--font-disp); font-size: 7px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--green3); padding: 7px 12px;
+  border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
+  background: rgba(0,255,136,.02);
+}
+tbody td { font-size: 11px; padding: 6px 12px; border-bottom: 1px solid var(--border2); color: rgba(0,255,136,.72); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background .15s; }
+tbody tr:hover { background: rgba(0,255,136,.03); }
+.no-data td { text-align:center; padding:18px; color: var(--green3); font-size:10px; letter-spacing:2px; opacity:.4; }
+
+/* ── BADGE ── */
+.badge { display:inline-block; padding:1px 7px; border-radius:1px; font-size:8px; font-family:var(--font-disp); letter-spacing:1.5px; text-transform:uppercase; border:1px solid; }
+.badge.add    { color:var(--green); border-color:rgba(0,255,136,.3);  background:rgba(0,255,136,.06); }
+.badge.remove { color:var(--red);   border-color:rgba(255,51,85,.3);  background:rgba(255,51,85,.06); }
+.badge.check  { color:var(--amber); border-color:rgba(255,170,0,.3);  background:rgba(255,170,0,.06); }
+.badge.update { color:var(--blue);  border-color:rgba(0,170,255,.3);  background:rgba(0,170,255,.06); }
+.badge.peer   { color:var(--blue);  border-color:rgba(0,170,255,.3);  background:rgba(0,170,255,.06); }
+.online-dot   { color:var(--green); text-shadow:0 0 6px var(--green); }
+.offline-dot  { color:var(--red);   text-shadow:0 0 6px var(--red); }
+.warn-dot     { color:var(--amber); text-shadow:0 0 6px var(--amber); }
+
+/* ── MINI BAR ── */
+.mbar { display:flex; align-items:center; gap:8px; }
+.mbar-track { flex:1; height:4px; background:rgba(0,255,136,.08); border-radius:2px; overflow:hidden; min-width:44px; }
+.mbar-fill  { height:100%; border-radius:2px; transition:width .4s ease; }
+
+/* ── CANVAS ── */
+#topo-canvas { display:block; width:100%; background:var(--bg); }
+.topo-legend { display:flex; gap:18px; padding:7px 15px; border-top:1px solid var(--border2); }
+.topo-legend span { font-size:8px; color:var(--green3); letter-spacing:1px; display:flex; align-items:center; gap:4px; }
+
+/* ── CHAT ── */
+.chat-wrap {
+  display: flex; flex-direction: column; height: 420px;
+}
+.chat-conv-bar {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border2);
+  background: rgba(0,255,136,.015); overflow-x: auto; flex-shrink: 0;
+}
+.chat-conv-bar::-webkit-scrollbar { height: 3px; }
+.chat-conv-bar::-webkit-scrollbar-thumb { background: var(--border); }
+.conv-tab {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px;
+  padding: 7px 14px; border: none; background: transparent;
+  color: var(--green3); cursor: pointer; white-space: nowrap;
+  border-right: 1px solid var(--border2); transition: all .15s;
+  position: relative; border-bottom: 2px solid transparent;
+}
+.conv-tab:hover { background: rgba(0,255,136,.04); color: var(--green); }
+.conv-tab.active {
+  color: var(--green); background: rgba(0,255,136,.06);
+  border-bottom-color: var(--green);
+}
+.conv-tab .unread {
+  display: inline-block; background: var(--red); color: #fff;
+  font-size: 7px; border-radius: 8px; padding: 1px 5px; margin-left: 5px;
+  font-family: var(--font-disp); vertical-align: middle;
+  box-shadow: 0 0 6px rgba(255,51,85,.5); animation: pulse .8s ease-in-out infinite;
+}
+.conv-header {
+  padding: 5px 14px; font-size: 8px; letter-spacing: 2px;
+  color: rgba(0,255,136,.3); border-bottom: 1px solid var(--border2);
+  background: rgba(0,255,136,.01); flex-shrink: 0;
+}
+.chat-log {
+  flex: 1; overflow-y: auto; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.chat-log::-webkit-scrollbar { width: 4px; }
+.chat-log::-webkit-scrollbar-thumb { background: var(--border); }
+
+.msg { display: flex; flex-direction: column; max-width: 82%; gap: 3px; animation: msgIn .2s ease; }
+@keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.msg.mine { align-self: flex-end; align-items: flex-end; }
+.msg.theirs { align-self: flex-start; align-items: flex-start; }
+
+.msg-meta { font-size: 8px; color: rgba(0,255,136,.35); letter-spacing: 1px; }
+.msg.mine .msg-meta { color: rgba(0,170,255,.45); }
+
+.msg-bubble {
+  padding: 8px 13px; border-radius: 2px; font-size: 12px; line-height: 1.5;
+  border: 1px solid; word-break: break-word;
+}
+.msg.theirs .msg-bubble {
+  background: rgba(0,255,136,.05); border-color: rgba(0,255,136,.18); color: var(--green);
+}
+.msg.mine .msg-bubble {
+  background: rgba(0,170,255,.06); border-color: rgba(0,170,255,.25); color: var(--blue);
+}
+.msg.broadcast .msg-bubble {
+  background: rgba(255,170,0,.04); border-color: rgba(255,170,0,.2); color: var(--amber);
+}
+.msg.broadcast .msg-meta { color: rgba(255,170,0,.4); }
+
+.chat-form {
+  display: flex; gap: 8px; padding: 10px 14px;
+  border-top: 1px solid var(--border2); background: rgba(0,255,136,.02);
+}
+.chat-input {
+  flex: 1; background: rgba(0,255,136,.04); border: 1px solid var(--border);
+  color: var(--green); font-family: var(--font-mono); font-size: 12px;
+  padding: 7px 12px; border-radius: 2px; outline: none;
+  transition: border-color .2s;
+}
+.chat-input::placeholder { color: rgba(0,255,136,.25); }
+.chat-input:focus { border-color: rgba(0,255,136,.4); box-shadow: 0 0 8px rgba(0,255,136,.1); }
+.chat-send {
+  font-family: var(--font-disp); font-size: 8px; letter-spacing: 2px;
+  padding: 7px 16px; background: rgba(0,255,136,.08);
+  border: 1px solid rgba(0,255,136,.3); color: var(--green);
+  cursor: pointer; border-radius: 2px; transition: all .2s; white-space: nowrap;
+}
+.chat-send:hover { background: rgba(0,255,136,.15); box-shadow: 0 0 10px rgba(0,255,136,.2); }
+.chat-send:active { transform: scale(.97); }
+.chat-target {
+  font-family: var(--font-mono); font-size: 11px; padding: 7px 10px;
+  background: rgba(0,255,136,.04); border: 1px solid var(--border);
+  color: var(--green3); border-radius: 2px; outline: none; cursor: pointer;
+  min-width: 100px;
+}
+.chat-target option { background: var(--bg2); }
+
+/* ── LOG ── */
+.log-box {
+  background: var(--bg); padding: 10px 14px; font-size: 9px; color: var(--green3);
+  max-height: 160px; overflow-y: auto; line-height: 1.7; letter-spacing: .3px;
+}
+.log-box::-webkit-scrollbar { width: 4px; }
+.log-box::-webkit-scrollbar-thumb { background: var(--border); }
+.log-box p { word-break: break-all; }
+.log-box p:last-child { color: var(--green2); }
+
+/* ── PING TABLE DIST ── */
+.dist-lbl { font-size: 9px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="logo"></div>
+    <div>
+      <div class="hdr-title">{{ node_name }}</div>
+      <div class="hdr-sub">MESH CTRL · PROYECTOSC · P2P</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="pill"><div class="blink"></div><span id="hdr-status">ONLINE</span></div>
+    <div class="pill" style="color:rgba(0,255,136,.4)"><span id="role-badge">{{ role }}</span></div>
+    <a href="/game" style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;padding:5px 13px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.3);color:#ffd700;text-decoration:none;border-radius:2px;transition:all .2s" onmouseover="this.style.background='rgba(255,215,0,.14)'" onmouseout="this.style.background='rgba(255,215,0,.06)'">♠ BLACKJACK</a>
+    <button class="btn-off" onclick="shutdownNode()">⏻ APAGAR</button>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-lbl">SYS</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="ticker-scroll">
+      <span>BATMAN-ADV MESH P2P</span><span>UDP :12345</span><span>HTTP :5080</span>
+      <span>TOPOLOGÍA EN VIVO</span><span>M/M/1 QUEUING</span><span>SISTEMAS COMPLEJOS · SERGIO ARBOLEDA</span>
+      <span>BATMAN-ADV MESH P2P</span><span>UDP :12345</span><span>HTTP :5080</span>
+      <span>TOPOLOGÍA EN VIVO</span><span>M/M/1 QUEUING</span><span>SISTEMAS COMPLEJOS · SERGIO ARBOLEDA</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- KPIs -->
+  <div class="row-kpi">
+    <div class="kpi">
+      <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+      <div class="kpi-lbl">Nodos Online</div>
+      <div class="kpi-val" id="kpi-online">—</div>
+      <div class="kpi-sub" id="kpi-online-sub">de — detectados</div>
+    </div>
+    <div class="kpi">
+      <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+      <div class="kpi-lbl">Mensajes Chat</div>
+      <div class="kpi-val blu" id="kpi-tx">—</div>
+      <div class="kpi-sub" id="kpi-tx-sub">en la mesh</div>
+    </div>
+    <div class="kpi">
+      <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+      <div class="kpi-lbl">Latencia Prom.</div>
+      <div class="kpi-val amb" id="kpi-lat">—</div>
+      <div class="kpi-sub">milisegundos · ping</div>
+    </div>
+    <div class="kpi">
+      <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+      <div class="kpi-lbl">Pérdida de Red</div>
+      <div class="kpi-val" id="kpi-loss">—</div>
+      <div class="kpi-sub" id="kpi-loss-sub">% packet loss · mesh</div>
+    </div>
+  </div>
+
+  <!-- Topología · fila completa -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Topología · En Vivo</span>
+      <span class="card-ts" id="topo-ts"></span>
+    </div>
+    <canvas id="topo-canvas" height="420"></canvas>
+    <div class="topo-legend">
+      <span><span style="color:var(--green)">━━</span> Directo (1 salto)</span>
+      <span><span style="color:var(--amber)">╌╌</span> Multisalto (2+)</span>
+      <span><span style="color:var(--blue)">━━</span> Activo</span>
+    </div>
+  </div>
+
+  <!-- Chat + Estado de Nodos (misma fila) -->
+  <div class="row-main">
+
+    <!-- CHAT -->
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <span class="card-title">Chat de Red · Mesh</span>
+        <span class="card-ts" id="chat-ts"></span>
+      </div>
+      <div class="chat-wrap" style="height:320px">
+        <div class="chat-conv-bar" id="chat-conv-bar">
+          <button class="conv-tab active" data-conv="all" onclick="switchConv('all')">⊕ TODOS</button>
+        </div>
+        <div class="conv-header" id="conv-header">BROADCAST · CANAL ABIERTO</div>
+        <div class="chat-log" id="chat-log">
+          <div style="text-align:center;color:rgba(0,255,136,.2);font-size:9px;letter-spacing:2px;margin-top:auto;padding:20px">
+            — CANAL ABIERTO · ESCUCHANDO —
+          </div>
+        </div>
+        <div class="chat-form">
+          <select class="chat-target" id="chat-target">
+            <option value="all">→ TODOS</option>
+          </select>
+          <input class="chat-input" id="chat-input"
+                 placeholder="Escribe un mensaje…" maxlength="400"
+                 autocomplete="off" spellcheck="false">
+          <button class="chat-send" onclick="sendChat()">ENVIAR ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado de Nodos -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Estado de Nodos</span>
+        <span class="card-ts" id="peers-ts"></span>
+      </div>
+      <table>
+        <thead><tr><th>Nodo</th><th>IP</th><th>Tx</th><th>Lat</th><th>ρ</th><th>·</th></tr></thead>
+        <tbody id="peers-body"><tr class="no-data"><td colspan="6">CONSULTANDO…</td></tr></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Latencia + Distancia (debajo del chat) -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Latencia · Distancia · Mesh</span>
+      <span class="card-ts" id="ping-ts"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Nodo destino</th>
+            <th>RTT prom.</th>
+            <th>RTT máx.</th>
+            <th>Jitter</th>
+            <th>Pérdida</th>
+            <th>Dist. estimada</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="ping-body"><tr class="no-data"><td colspan="7">MIDIENDO…</td></tr></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:24px;padding:8px 14px;border-top:1px solid var(--border2);font-size:8px;color:rgba(0,255,136,.25);letter-spacing:1px;align-items:center">
+      <span>⚠ DISTANCIA REFERENCIAL · WiFi 2.4GHz INTERIOR</span>
+      <span id="ping-summary" style="margin-left:auto;color:rgba(0,255,136,.4)"></span>
+    </div>
+  </div>
+
+  <!-- Traceroute + Log -->
+  <div class="row-bot">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Saltos Entre Nodos</span>
+        <span class="card-ts" id="tr-ts"></span>
+      </div>
+      <table>
+        <thead><tr><th>Ruta</th><th>Saltos</th><th>Latencia</th></tr></thead>
+        <tbody id="tr-body"><tr class="no-data"><td colspan="3">TRAZANDO…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Log del Sistema</span>
+        <span class="card-ts" id="log-ts"></span>
+      </div>
+      <div class="log-box" id="logs"><p>— iniciando —</p></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── Estado ──────────────────────────────────────────────────
+const MY_NAME = {{ node_name | tojson }};
+let peersCache  = [];
+let routesCache = [];
+let pingCache   = [];
+let chatSince   = 0;
+let NODE_POS    = {};
+
+// Chat: all messages keyed by msg_id, organised by conversation
+let allMessages = {};          // msg_id → msg object
+let activeConv  = 'all';       // current tab: 'all' | node_name
+let unreadCount = {};          // conv_key → unread count
+
+const ts = () => new Date().toLocaleTimeString('es-CO', {hour12:false});
+
+function rhoColor(r) {
+  return r > .85 ? 'var(--red)' : r > .55 ? 'var(--amber)' : 'var(--green)';
+}
+function latColor(ms) {
+  if (ms == null) return 'rgba(0,255,136,.4)';
+  return ms > 20 ? 'var(--red)' : ms > 8 ? 'var(--amber)' : 'var(--green)';
+}
+function uuid4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0;
+    return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
+// ── Topology ────────────────────────────────────────────────
+function computePos(names) {
+  const pos = {};
+  const n = names.length;
+  if (!n) return pos;
+  if (n === 1) { pos[names[0]] = {x:.5,y:.5}; return pos; }
+  names.forEach((name, i) => {
+    const a = -Math.PI/2 + (2*Math.PI*i)/n;
+    pos[name] = { x: .5 + .36*Math.cos(a), y: .5 + .36*Math.sin(a) };
+  });
+  return pos;
+}
+
+function drawTopology(peers, routes) {
+  const canvas = document.getElementById('topo-canvas');
+  const W = canvas.offsetWidth, H = 420;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // bg grid
+  ctx.strokeStyle = 'rgba(0,255,136,.035)'; ctx.lineWidth = 1;
+  for (let x=0; x<W; x+=30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y=0; y<H; y+=30) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // radar rings
+  [.38,.27,.15].forEach(r => {
+    ctx.beginPath(); ctx.arc(W/2,H/2,r*Math.min(W,H),0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,255,136,.045)'; ctx.lineWidth=1; ctx.stroke();
+  });
+
+  const onlineSet = new Set(peers.filter(p=>p.status==='online').map(p=>p.node_name));
+  const names = [...onlineSet].sort();
+  const key = names.join(',');
+  if (!NODE_POS._key || NODE_POS._key !== key) {
+    NODE_POS = computePos(names); NODE_POS._key = key;
+  }
+
+  const hopMap = {};
+  routes.forEach(r => {
+    const k=[r.src,r.dst].sort().join('|');
+    if (!hopMap[k]||r.reachable) hopMap[k]=r;
+  });
+  const pingMap = {};
+  pingCache.forEach(p => {
+    if (p.rtt_avg>0) pingMap[[p.src,p.dst].sort().join('|')]=p;
+  });
+
+  // edges
+  for (let i=0; i<names.length; i++) for (let j=i+1; j<names.length; j++) {
+    const a=names[i], b=names[j];
+    const pa=NODE_POS[a], pb=NODE_POS[b]; if (!pa||!pb) continue;
+    const k=[a,b].sort().join('|');
+    const route=hopMap[k], ping=pingMap[k];
+    let color='rgba(0,255,136,.2)', dash=[];
+    if      (route?.hop_count===1)        { color='rgba(0,255,136,.7)'; }
+    else if (route?.hop_count>=2)         { color='rgba(255,170,0,.6)'; dash=[8,4]; }
+    else if (ping?.reachable)             { color='rgba(0,170,255,.6)'; }
+
+    ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.setLineDash(dash);
+    if (!dash.length) { ctx.shadowColor='rgba(0,255,136,.35)'; ctx.shadowBlur=5; }
+    ctx.beginPath(); ctx.moveTo(pa.x*W,pa.y*H); ctx.lineTo(pb.x*W,pb.y*H); ctx.stroke();
+    ctx.restore();
+
+    const lat = ping?.rtt_avg ? ping.rtt_avg.toFixed(1)+'ms'
+              : route?.latency_ms ? route.latency_ms+'ms' : null;
+    if (lat) {
+      const mx=(pa.x+pb.x)/2*W, my=(pa.y+pb.y)/2*H;
+      ctx.fillStyle='rgba(2,13,7,.88)'; ctx.fillRect(mx-19,my-8,38,15);
+      ctx.strokeStyle='rgba(0,255,136,.15)'; ctx.lineWidth=1; ctx.setLineDash([]);
+      ctx.strokeRect(mx-19,my-8,38,15);
+      ctx.fillStyle='rgba(0,255,136,.8)'; ctx.font='8px Share Tech Mono,monospace';
+      ctx.textAlign='center'; ctx.fillText(lat,mx,my+3);
+    }
+  }
+
+  // nodes
+  names.forEach(name => {
+    const p=NODE_POS[name]; if(!p) return;
+    const x=p.x*W, y=p.y*H;
+    // outer ring
+    ctx.beginPath(); ctx.arc(x,y,27,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,255,136,.1)'; ctx.lineWidth=7; ctx.stroke();
+    // glow + fill
+    ctx.shadowColor='rgba(0,255,136,.5)'; ctx.shadowBlur=18;
+    ctx.beginPath(); ctx.arc(x,y,19,0,Math.PI*2);
+    ctx.fillStyle='rgba(2,13,7,.95)'; ctx.fill();
+    ctx.strokeStyle='rgba(0,255,136,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.shadowBlur=0;
+    // online dot
+    ctx.beginPath(); ctx.arc(x+13,y-13,4.5,0,Math.PI*2);
+    ctx.fillStyle='#00ff88'; ctx.shadowColor='#00ff88'; ctx.shadowBlur=7;
+    ctx.fill(); ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(2,13,7,.9)'; ctx.lineWidth=1.2; ctx.stroke();
+    // label
+    const short = name.length>7 ? name.slice(0,7) : name;
+    ctx.fillStyle='#00ff88'; ctx.font='bold 8px Orbitron,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(short,x,y);
+    ctx.fillStyle='rgba(0,255,136,.45)'; ctx.font='9px Share Tech Mono,monospace';
+    ctx.textBaseline='top'; ctx.fillText(name,x,y+26);
+  });
+
+  if (!names.length) {
+    ctx.fillStyle='rgba(0,255,136,.15)'; ctx.font='10px Share Tech Mono,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('SIN NODOS ONLINE',W/2,H/2);
+  }
+  document.getElementById('topo-ts').textContent = ts();
+}
+
+// ── Shutdown ────────────────────────────────────────────────
+async function shutdownNode() {
+  if (!confirm('¿Apagar este nodo?')) return;
+  try {
+    await fetch('/api/shutdown-node', {method:'POST'});
+    document.getElementById('hdr-status').textContent = 'OFFLINE';
+    document.querySelector('.blink').style.background = 'var(--red)';
+  } catch(e){}
+}
+
+// ── Peers ────────────────────────────────────────────────────
+async function updatePeers() {
+  try {
+    const r = await fetch('/api/peers-metrics');
+    peersCache = await r.json();
+    document.getElementById('peers-ts').textContent = ts();
+
+    const online = peersCache.filter(p=>p.status==='online').length;
+    document.getElementById('kpi-online').textContent = online;
+    document.getElementById('kpi-online-sub').textContent = `de ${peersCache.length} detectados`;
+
+    // Mensajes Chat: total en DB local (incluye los sincronizados)
+    document.getElementById('kpi-tx').textContent = Object.keys(allMessages).length || '—';
+    document.getElementById('kpi-tx-sub').textContent = `${online} nodo${online!==1?'s':''} · mesh`;
+
+    // actualizar select de destino en chat
+    const sel = document.getElementById('chat-target');
+    const cur = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    peersCache.filter(p=>p.status==='online' && p.node_name!==MY_NAME).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.node_name; opt.textContent = '→ ' + p.node_name;
+      sel.appendChild(opt);
+    });
+    if ([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+    // actualizar tabs de conversación
+    updateConvTabs(peersCache);
+
+    // filtrar ping de offline
+    const offlineSet = new Set(peersCache.filter(p=>p.status==='offline').map(p=>p.node_name));
+    if (offlineSet.size) pingCache = pingCache.filter(p=>!offlineSet.has(p.src)&&!offlineSet.has(p.dst));
+
+    document.getElementById('peers-body').innerHTML = peersCache.map(p => {
+      const on = p.status==='online';
+      const rho = p.rho!=null ? parseFloat(p.rho) : null;
+      const latStr = p.avg_latency_ms!=null ? parseFloat(p.avg_latency_ms).toFixed(1)+' ms' : '—';
+      return `<tr style="opacity:${on?1:.4}">
+        <td style="font-weight:700;color:${on?'var(--green)':'var(--red)'}">${p.node_name}</td>
+        <td style="font-size:9px;color:rgba(0,255,136,.4)">${p.peer_ip||'—'}</td>
+        <td>${p.total_transactions??'—'}</td>
+        <td style="color:${latColor(parseFloat(p.avg_latency_ms))}">${latStr}</td>
+        <td style="color:${rho!=null?rhoColor(rho):'rgba(0,255,136,.4)'};font-family:var(--font-disp);font-size:9px">${rho!=null?rho.toFixed(3):'—'}</td>
+        <td><span class="${on?'online-dot':'offline-dot'}">●</span></td>
+      </tr>`;
+    }).join('') || '<tr class="no-data"><td colspan="6">SIN NODOS</td></tr>';
+
+    drawTopology(peersCache, routesCache);
+  } catch(e){}
+}
+
+// ── Traceroute ───────────────────────────────────────────────
+async function updateTraceroute() {
+  try {
+    const r = await fetch('/api/traceroute-all');
+    routesCache = await r.json();
+    document.getElementById('tr-ts').textContent = ts();
+    const offlineNodes = new Set(peersCache.filter(p=>p.status==='offline').map(p=>p.node_name));
+    if (offlineNodes.size) routesCache = routesCache.filter(r=>!offlineNodes.has(r.src)&&!offlineNodes.has(r.dst));
+
+    document.getElementById('tr-body').innerHTML = routesCache.map(r => {
+      const hc=r.hop_count;
+      const col=hc===0?'var(--red)':hc===1?'var(--green)':'var(--amber)';
+      return `<tr>
+        <td style="font-weight:700">${r.src} <span style="color:var(--green3)">›</span> ${r.dst}</td>
+        <td style="font-family:var(--font-disp);font-size:9px;color:${col}">${hc} <span style="opacity:.5;font-size:7px">SALTOS</span></td>
+        <td style="color:${latColor(parseFloat(r.latency_ms))}">${r.latency_ms?r.latency_ms+'ms':'—'}</td>
+      </tr>`;
+    }).join('') || '<tr class="no-data"><td colspan="3">SIN RUTAS</td></tr>';
+    drawTopology(peersCache, routesCache);
+  } catch(e){}
+}
+
+// ── Métricas locales ─────────────────────────────────────────
+async function updateLocal() {
+  try {
+    const [mRes, logRes] = await Promise.all([fetch('/api/metrics'), fetch('/api/logs')]);
+    const m  = await mRes.json();
+    const lg = await logRes.json();
+
+    document.getElementById('kpi-lat').textContent = m.avg_latency_ms!=null ? parseFloat(m.avg_latency_ms).toFixed(1) : '—';
+
+    const logLines = (lg.logs||[]).slice(-50);
+    document.getElementById('logs').innerHTML = logLines.map(l=>`<p>${l.trim()}</p>`).join('');
+    const lb = document.getElementById('logs'); lb.scrollTop = lb.scrollHeight;
+    document.getElementById('log-ts').textContent = ts();
+  } catch(e){}
+}
+
+// ── Ping ─────────────────────────────────────────────────────
+async function updatePing() {
+  try {
+    const r = await fetch('/api/ping-all');
+    const pings = await r.json();
+    const offlineNow = new Set(peersCache.filter(p=>p.status==='offline').map(p=>p.node_name));
+    pingCache = offlineNow.size ? pings.filter(p=>!offlineNow.has(p.src)&&!offlineNow.has(p.dst)) : pings;
+    drawTopology(peersCache, routesCache);
+    document.getElementById('ping-ts').textContent = ts();
+    // Colores y etiquetas de distancia
+    function distStyle(label) {
+      if (!label || label === '—') return {color:'rgba(0,255,136,.3)', border:'rgba(0,255,136,.1)'};
+      if (label.includes('<10') || label.includes('10-30')) return {color:'var(--green)', border:'rgba(0,255,136,.3)'};
+      if (label.includes('30-80'))  return {color:'var(--amber)', border:'rgba(255,170,0,.3)'};
+      return {color:'var(--red)', border:'rgba(255,51,85,.3)'};
+    }
+    // Barra de latencia: máx visual = 50ms
+    const MAX_LAT_BAR = 50;
+    document.getElementById('ping-body').innerHTML = pings.map(p => {
+      const on    = p.reachable;
+      const hasRtt = p.rtt_avg != null && p.rtt_avg > 0;
+      const lc    = latColor(p.rtt_avg);
+      const lossCol = p.loss_pct === 0 ? 'var(--green)' : p.loss_pct < 25 ? 'var(--amber)' : 'var(--red)';
+      const bar   = hasRtt ? Math.min(100, Math.round(p.rtt_avg / MAX_LAT_BAR * 100)) : 0;
+      const ds    = distStyle(p.dist_label);
+      return `<tr style="opacity:${on?1:.45}">
+        <td>
+          <span style="font-weight:700;color:${on?'var(--green)':'var(--red)'}">${p.dst}</span>
+          ${p.dst_ip ? `<br><span style="font-size:8px;color:rgba(0,255,136,.3)">${p.dst_ip}</span>` : ''}
+        </td>
+        <td>
+          ${hasRtt
+            ? `<div class="lat-bar">
+                 <div class="lat-track"><div class="lat-fill" style="width:${bar}%;background:${lc}"></div></div>
+                 <span style="color:${lc};font-family:var(--font-disp);font-size:11px;font-weight:700">${p.rtt_avg.toFixed(1)}</span>
+                 <span style="font-size:8px;color:rgba(0,255,136,.4)">ms</span>
+               </div>`
+            : '<span style="opacity:.3;font-size:10px">—</span>'}
+        </td>
+        <td style="color:rgba(0,255,136,.55);font-size:10px">${p.rtt_max != null ? p.rtt_max.toFixed(1)+' ms' : '—'}</td>
+        <td style="color:rgba(0,255,136,.45);font-size:10px">${p.rtt_mdev != null ? '±'+p.rtt_mdev.toFixed(1)+' ms' : '—'}</td>
+        <td>
+          <span style="font-family:var(--font-disp);font-size:10px;color:${lossCol}">${p.loss_pct}%</span>
+        </td>
+        <td>
+          ${p.dist_label && p.dist_label !== '—'
+            ? `<span class="dist-badge" style="color:${ds.color};border-color:${ds.border}">📍 ${p.dist_label}</span>`
+            : '<span style="opacity:.25;font-size:9px">—</span>'}
+        </td>
+        <td>
+          <span class="${on?'online-dot':'offline-dot'}" style="font-family:var(--font-disp);font-size:8px;letter-spacing:1px">${on?'OK':'FAIL'}</span>
+        </td>
+      </tr>`;
+    }).join('') || '<tr class="no-data"><td colspan="7">SIN PEERS DETECTADOS</td></tr>';
+
+    // KPI pérdida de red + resumen en footer
+    const reachable = pings.filter(p => p.loss_pct != null);
+    if (reachable.length) {
+      const avgLoss = reachable.reduce((s, p) => s + p.loss_pct, 0) / reachable.length;
+      const lossEl = document.getElementById('kpi-loss');
+      lossEl.textContent = avgLoss.toFixed(1) + '%';
+      lossEl.style.color = avgLoss > 20 ? 'var(--red)' : avgLoss > 5 ? 'var(--amber)' : 'var(--green)';
+      document.getElementById('kpi-loss-sub').textContent =
+        `${reachable.filter(p=>p.loss_pct===0).length}/${reachable.length} sin pérdida`;
+
+      const avgRtt = reachable.filter(p=>p.rtt_avg>0).reduce((s,p)=>s+p.rtt_avg,0)
+                   / (reachable.filter(p=>p.rtt_avg>0).length || 1);
+      const sumEl = document.getElementById('ping-summary');
+      if (sumEl) sumEl.textContent =
+        `${reachable.filter(p=>p.reachable).length}/${reachable.length} alcanzables · prom ${avgRtt.toFixed(1)} ms`;
+    }
+  } catch(e){}
+}
+
+// ── CHAT ─────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Returns the conversation key for a message (from this node's perspective)
+function convKeyOf(msg) {
+  if (msg.to_node === 'all') return 'all';
+  // Private: between me and the other party
+  if (msg.from_node === MY_NAME) return msg.to_node;
+  if (msg.to_node   === MY_NAME) return msg.from_node;
+  return null; // message not relevant to me
+}
+
+function msgBelongsToConv(msg, conv) {
+  if (conv === 'all') return msg.to_node === 'all';
+  // Private conversation with 'conv'
+  return (msg.from_node === MY_NAME && msg.to_node === conv)
+      || (msg.from_node === conv    && msg.to_node === MY_NAME);
+}
+
+function renderMsg(msg) {
+  const mine      = msg.from_node === MY_NAME;
+  const broadcast = msg.to_node === 'all';
+  const when = new Date(msg.ts*1000).toLocaleTimeString('es-CO',{hour12:false});
+  let cls  = mine ? 'mine' : (broadcast ? 'broadcast theirs' : 'theirs');
+  let meta = mine
+    ? `${msg.from_node} → ${msg.to_node === 'all' ? 'TODOS' : msg.to_node} · ${when}`
+    : `${msg.from_node} · ${when}`;
+  return `<div class="msg ${cls}">
+    <div class="msg-meta">${meta}</div>
+    <div class="msg-bubble">${escHtml(msg.body)}</div>
+  </div>`;
+}
+
+function renderChatLog() {
+  const log = document.getElementById('chat-log');
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+
+  const msgs = Object.values(allMessages)
+    .filter(m => msgBelongsToConv(m, activeConv))
+    .sort((a, b) => a.ts - b.ts);
+
+  if (!msgs.length) {
+    log.innerHTML = `<div style="text-align:center;color:rgba(0,255,136,.2);font-size:9px;letter-spacing:2px;margin-top:auto;padding:20px">— ${activeConv === 'all' ? 'CANAL BROADCAST' : 'CONVERSACIÓN CON ' + activeConv.toUpperCase()} · VACÍO —</div>`;
+    return;
+  }
+
+  log.innerHTML = msgs.map(renderMsg).join('');
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+function switchConv(conv) {
+  activeConv = conv;
+  // Update active tab
+  document.querySelectorAll('.conv-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.conv === conv);
+    if (t.dataset.conv === conv) {
+      const badge = t.querySelector('.unread');
+      if (badge) badge.remove();
+      unreadCount[conv] = 0;
+    }
+  });
+  // Update header
+  const hdr = document.getElementById('conv-header');
+  hdr.textContent = conv === 'all'
+    ? 'BROADCAST · CANAL ABIERTO'
+    : `PRIVADO · ${conv.toUpperCase()}`;
+  // Sync the send target selector
+  const sel = document.getElementById('chat-target');
+  if ([...sel.options].some(o => o.value === conv)) sel.value = conv;
+  // Re-render log
+  renderChatLog();
+  document.getElementById('chat-log').scrollTop = document.getElementById('chat-log').scrollHeight;
+}
+
+function updateConvTabs(peers) {
+  const bar = document.getElementById('chat-conv-bar');
+  const knownConvs = new Set([...bar.querySelectorAll('.conv-tab')].map(t => t.dataset.conv));
+
+  peers.filter(p => p.status === 'online' && p.node_name !== MY_NAME).forEach(p => {
+    if (!knownConvs.has(p.node_name)) {
+      const btn = document.createElement('button');
+      btn.className = 'conv-tab';
+      btn.dataset.conv = p.node_name;
+      btn.textContent = '⇌ ' + p.node_name;
+      btn.onclick = () => switchConv(p.node_name);
+      bar.appendChild(btn);
+    }
+  });
+}
+
+function markUnread(conv) {
+  if (conv === activeConv) return;
+  unreadCount[conv] = (unreadCount[conv] || 0) + 1;
+  const tab = document.querySelector(`.conv-tab[data-conv="${CSS.escape(conv)}"]`);
+  if (!tab) return;
+  let badge = tab.querySelector('.unread');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'unread';
+    tab.appendChild(badge);
+  }
+  badge.textContent = unreadCount[conv] > 9 ? '9+' : unreadCount[conv];
+}
+
+async function updateChat() {
+  try {
+    const r = await fetch('/api/chat/messages?since='+chatSince);
+    const msgs = await r.json();
+    if (!msgs.length) return;
+
+    let hasNew = false;
+    msgs.forEach(msg => {
+      if (allMessages[msg.msg_id]) return;
+      const conv = convKeyOf(msg);
+      if (conv === null) return; // not for me
+      allMessages[msg.msg_id] = msg;
+      if (msg.ts > chatSince) chatSince = msg.ts;
+      hasNew = true;
+      if (conv !== activeConv && chatSince > 0) markUnread(conv);
+    });
+
+    if (hasNew) {
+      renderChatLog();
+    }
+    document.getElementById('chat-ts').textContent = ts();
+  } catch(e){}
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const target = document.getElementById('chat-target');
+  const body = input.value.trim();
+  if (!body) return;
+  input.value = '';
+  input.focus();
+
+  const toNode  = target.value || 'all';
+  const msg_id  = uuid4();
+  const nowTs   = Date.now() / 1000;
+
+  // Inserción optimista: mostrar el mensaje inmediatamente sin esperar el servidor
+  const optimisticMsg = { msg_id, from_node: MY_NAME, to_node: toNode, body, ts: nowTs };
+  allMessages[msg_id] = optimisticMsg;
+  if (toNode !== activeConv) switchConv(toNode);
+  renderChatLog();
+
+  try {
+    await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ msg_id, from_node: MY_NAME, to_node: toNode, body }),
+    });
+    // Forzar poll desde un poco antes del envío para capturar el mensaje del servidor
+    // y actualizar chatSince correctamente
+    const prevSince = chatSince;
+    chatSince = Math.max(0, nowTs - 2);
+    await updateChat();
+    if (chatSince < prevSince) chatSince = prevSince; // no retroceder si no llegó nada
+  } catch(e) {
+    input.value = body;
+    // Revertir inserción optimista si falló
+    delete allMessages[msg_id];
+    renderChatLog();
+  }
+}
+
+// Sync tab → select when user changes select directly
+document.getElementById('chat-target').addEventListener('change', function() {
+  switchConv(this.value);
+});
+
+// Enter para enviar
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+// ── Sincronización historial de chat ─────────────────────────
+// Al arrancar, pide a cada peer online su historial completo y lo importa localmente.
+// Así si un nodo se reconecta, recupera los mensajes que se perdió.
+async function syncChatHistory() {
+  const peers = peersCache.filter(p => p.status === 'online' && p.peer_ip);
+  for (const peer of peers) {
+    try {
+      const r = await fetch(`http://${peer.peer_ip}:5080/api/chat/messages?since=0&limit=500`);
+      const msgs = await r.json();
+      if (!msgs.length) continue;
+      // Enviar al endpoint local de sync para insertar en DB
+      await fetch('/api/chat/sync', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(msgs),
+      });
+      // También cargarlos en memoria sin esperar el poll
+      msgs.forEach(msg => {
+        if (allMessages[msg.msg_id]) return;
+        const conv = convKeyOf(msg);
+        if (conv === null) return;
+        allMessages[msg.msg_id] = msg;
+        if (msg.ts > chatSince) chatSince = msg.ts;
+      });
+    } catch(e) {}
+  }
+  renderChatLog();
+  document.getElementById('kpi-tx').textContent = Object.keys(allMessages).length || '—';
+}
+
+// ── Init ─────────────────────────────────────────────────────
+updatePeers();       setInterval(updatePeers,      5000);
+updateTraceroute();  setInterval(updateTraceroute, 10000);
+updateLocal();       setInterval(updateLocal,       3000);
+updatePing();        setInterval(updatePing,        4000);
+updateChat();        setInterval(updateChat,         800);
+// Sincronizar historial 3s después de arrancar (esperar que peers-metrics cargue)
+setTimeout(syncChatHistory, 3000);
+window.addEventListener('resize', () => drawTopology(peersCache, routesCache));
+</script>
+</body>
+</html>

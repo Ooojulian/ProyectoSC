@@ -1,0 +1,9 @@
+.env
+*.env
+__pycache__/
+*.pyc
+*.pyo
+data/inventory.db
+data/inventory.db-shm
+data/inventory.db-wal
+logs/

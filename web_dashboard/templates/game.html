@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ node_name }} — BLACKJACK · MESH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:  #00ff88;
+  --green2: #00cc66;
+  --green3: #009944;
+  --amber:  #ffaa00;
+  --red:    #ff3355;
+  --blue:   #00aaff;
+  --gold:   #ffd700;
+  --bg:     #020d07;
+  --bg2:    #05150c;
+  --bg3:    #081f10;
+  --border: rgba(0,255,136,0.15);
+  --glow:   0 0 14px rgba(0,255,136,0.45);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-disp: 'Orbitron', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--green);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
+  pointer-events: none; z-index: 9999;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none; z-index: 9998;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 22px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.hdr-left { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 34px; height: 34px; border: 2px solid var(--gold);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 14px rgba(255,215,0,.4); flex-shrink: 0; font-size: 16px;
+}
+.hdr-title { font-family: var(--font-disp); font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--gold); text-shadow: 0 0 14px rgba(255,215,0,.5); }
+.hdr-sub   { font-size: 9px; color: var(--green3); letter-spacing: 2px; margin-top: 2px; }
+.hdr-right { display: flex; align-items: center; gap: 10px; }
+.back-btn {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  padding: 5px 14px; background: transparent;
+  border: 1px solid var(--border); color: var(--green3);
+  cursor: pointer; border-radius: 2px; transition: all .2s; text-decoration: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.back-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* ── LAYOUT ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 20px 18px; display: grid; gap: 16px; }
+
+/* ── CREDITS BAR ── */
+.credits-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 10px 20px; border-radius: 2px;
+}
+.credits-info { display: flex; align-items: center; gap: 28px; }
+.cred-item { display: flex; flex-direction: column; gap: 2px; }
+.cred-lbl { font-size: 7px; letter-spacing: 2px; color: var(--green3); text-transform: uppercase; }
+.cred-val { font-family: var(--font-disp); font-size: 20px; font-weight: 700; color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,.4); }
+.cred-val.green { color: var(--green); text-shadow: var(--glow); }
+.bet-controls { display: flex; align-items: center; gap: 8px; }
+.bet-btn {
+  font-family: var(--font-mono); font-size: 10px; padding: 5px 12px;
+  background: rgba(0,255,136,.06); border: 1px solid var(--border);
+  color: var(--green); cursor: pointer; border-radius: 2px; transition: all .15s;
+}
+.bet-btn:hover { background: rgba(0,255,136,.14); }
+.bet-input {
+  font-family: var(--font-disp); font-size: 14px; width: 80px; text-align: center;
+  background: rgba(0,255,136,.04); border: 1px solid var(--border);
+  color: var(--gold); padding: 5px 8px; border-radius: 2px; outline: none;
+}
+.bet-input:focus { border-color: var(--gold); }
+
+/* ── TABLE ── */
+.game-table {
+  background: radial-gradient(ellipse at center, #041a0d 0%, #020d07 100%);
+  border: 2px solid rgba(0,255,136,.2);
+  border-radius: 4px; padding: 24px 20px;
+  position: relative; min-height: 380px;
+  box-shadow: inset 0 0 60px rgba(0,0,0,.5), 0 0 30px rgba(0,255,136,.05);
+}
+.game-table::before {
+  content: ''; position: absolute; inset: 6px;
+  border: 1px solid rgba(0,255,136,.06); border-radius: 2px; pointer-events: none;
+}
+
+/* ── HAND SECTIONS ── */
+.hand-section { margin-bottom: 20px; }
+.hand-label {
+  font-family: var(--font-disp); font-size: 8px; letter-spacing: 3px;
+  color: var(--green3); margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
+}
+.hand-label .total-badge {
+  font-size: 10px; padding: 2px 9px; border: 1px solid var(--border);
+  border-radius: 2px; background: rgba(0,255,136,.06); color: var(--green);
+  font-family: var(--font-mono);
+}
+.hand-label .total-badge.bust  { color: var(--red);   border-color: rgba(255,51,85,.3); }
+.hand-label .total-badge.bj    { color: var(--gold);  border-color: rgba(255,215,0,.4); }
+.hand-label .total-badge.stand { color: var(--amber); border-color: rgba(255,170,0,.3); }
+
+.cards { display: flex; gap: 10px; flex-wrap: wrap; min-height: 100px; align-items: flex-end; }
+
+/* ── CARD ── */
+.card {
+  width: 66px; height: 94px;
+  background: #0a1f12;
+  border: 1px solid rgba(0,255,136,.25);
+  border-radius: 4px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 6px 7px;
+  position: relative;
+  animation: cardIn .25s cubic-bezier(.34,1.56,.64,1) both;
+  box-shadow: 2px 3px 10px rgba(0,0,0,.5), inset 0 0 20px rgba(0,255,136,.02);
+}
+@keyframes cardIn {
+  from { opacity:0; transform: translateY(-18px) rotate(-4deg) scale(.88); }
+  to   { opacity:1; transform: translateY(0) rotate(0deg) scale(1); }
+}
+.card.hidden {
+  background: repeating-linear-gradient(
+    135deg, #041a0d, #041a0d 4px, #051f0f 4px, #051f0f 8px
+  );
+  border-color: rgba(0,255,136,.15);
+}
+.card.hidden::after {
+  content: '?'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-disp); font-size: 26px; color: rgba(0,255,136,.12);
+}
+.card-val-top {
+  font-family: var(--font-disp); font-size: 13px; font-weight: 700; line-height: 1;
+}
+.card-suit-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 28px; opacity: .18;
+}
+.card-val-bot {
+  font-family: var(--font-disp); font-size: 13px; font-weight: 700;
+  align-self: flex-end; transform: rotate(180deg); line-height: 1;
+}
+.red-suit { color: var(--red); }
+.black-suit { color: var(--green2); }
+
+/* ── DIVIDER ── */
+.table-divider {
+  border: none; border-top: 1px solid rgba(0,255,136,.08);
+  margin: 16px 0;
+}
+
+/* ── PLAYERS GRID ── */
+.players-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;
+  margin-top: 4px;
+}
+.player-slot {
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 12px 14px; background: rgba(0,255,136,.02);
+  position: relative;
+}
+.player-slot.me { border-color: rgba(0,255,136,.35); background: rgba(0,255,136,.04); }
+.player-slot.dealer-slot { border-color: rgba(255,215,0,.25); background: rgba(255,215,0,.02); }
+
+.player-name {
+  font-family: var(--font-disp); font-size: 9px; letter-spacing: 2px;
+  margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+}
+.player-name .you-tag {
+  font-size: 7px; padding: 1px 6px; background: rgba(0,255,136,.1);
+  border: 1px solid rgba(0,255,136,.25); border-radius: 1px; color: var(--green2);
+}
+.player-name .dealer-tag {
+  font-size: 7px; padding: 1px 6px; background: rgba(255,215,0,.1);
+  border: 1px solid rgba(255,215,0,.25); border-radius: 1px; color: var(--gold);
+}
+
+/* ── STATUS BADGES ── */
+.status-badge {
+  font-family: var(--font-disp); font-size: 8px; letter-spacing: 1.5px;
+  padding: 2px 9px; border-radius: 1px; border: 1px solid; display: inline-block;
+}
+.s-playing  { color: var(--green);  border-color: rgba(0,255,136,.3);  background: rgba(0,255,136,.06); }
+.s-stand    { color: var(--amber);  border-color: rgba(255,170,0,.3);  background: rgba(255,170,0,.06); }
+.s-bust     { color: var(--red);    border-color: rgba(255,51,85,.3);  background: rgba(255,51,85,.06); }
+.s-blackjack{ color: var(--gold);   border-color: rgba(255,215,0,.4);  background: rgba(255,215,0,.08); }
+.s-win      { color: var(--green);  border-color: rgba(0,255,136,.4);  background: rgba(0,255,136,.1); }
+.s-lose     { color: var(--red);    border-color: rgba(255,51,85,.4);  background: rgba(255,51,85,.1); }
+.s-push     { color: var(--blue);   border-color: rgba(0,170,255,.3);  background: rgba(0,170,255,.06); }
+.s-waiting  { color: var(--green3); border-color: rgba(0,153,68,.2);   background: transparent; }
+
+/* ── RESULT OVERLAY ── */
+.result-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(2,13,7,.82); backdrop-filter: blur(2px);
+  border-radius: 4px; flex-direction: column; gap: 12px;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.result-text {
+  font-family: var(--font-disp); font-size: 52px; font-weight: 900;
+  letter-spacing: 4px; text-align: center; line-height: 1;
+}
+.result-text.win       { color: var(--green); text-shadow: 0 0 30px rgba(0,255,136,.8); }
+.result-text.blackjack { color: var(--gold);  text-shadow: 0 0 30px rgba(255,215,0,.8); }
+.result-text.bust      { color: var(--red);   text-shadow: 0 0 30px rgba(255,51,85,.8); }
+.result-text.lose      { color: var(--red);   text-shadow: 0 0 20px rgba(255,51,85,.5); }
+.result-text.push      { color: var(--blue);  text-shadow: 0 0 20px rgba(0,170,255,.6); }
+.result-sub { font-size: 11px; color: rgba(0,255,136,.5); letter-spacing: 2px; }
+
+/* ── ACTION BUTTONS ── */
+.actions {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  margin-top: 18px;
+}
+.action-btn {
+  font-family: var(--font-disp); font-size: 10px; letter-spacing: 2px;
+  padding: 11px 26px; border-radius: 2px; cursor: pointer;
+  transition: all .18s; border: 1px solid; text-transform: uppercase;
+}
+.action-btn.primary {
+  background: rgba(0,255,136,.1); border-color: rgba(0,255,136,.4); color: var(--green);
+}
+.action-btn.primary:hover { background: rgba(0,255,136,.2); box-shadow: 0 0 16px rgba(0,255,136,.3); }
+.action-btn.danger {
+  background: rgba(255,51,85,.08); border-color: rgba(255,51,85,.4); color: var(--red);
+}
+.action-btn.danger:hover { background: rgba(255,51,85,.16); box-shadow: 0 0 16px rgba(255,51,85,.3); }
+.action-btn.gold {
+  background: rgba(255,215,0,.08); border-color: rgba(255,215,0,.4); color: var(--gold);
+}
+.action-btn.gold:hover { background: rgba(255,215,0,.16); box-shadow: 0 0 16px rgba(255,215,0,.3); }
+.action-btn.secondary {
+  background: transparent; border-color: var(--border); color: var(--green3);
+}
+.action-btn.secondary:hover { border-color: rgba(0,255,136,.3); color: var(--green); }
+.action-btn:disabled {
+  opacity: .3; cursor: not-allowed; pointer-events: none;
+}
+
+/* ── STATUS BAR ── */
+.status-bar {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 8px 18px; border-radius: 2px; font-size: 9px;
+  color: var(--green3); letter-spacing: 1.5px; display: flex;
+  align-items: center; justify-content: space-between;
+}
+.status-bar .phase-pill {
+  font-family: var(--font-disp); font-size: 8px; letter-spacing: 2px;
+  padding: 3px 10px; border-radius: 1px; border: 1px solid;
+}
+.phase-waiting  { color: var(--green3); border-color: rgba(0,153,68,.3); }
+.phase-playing  { color: var(--green);  border-color: rgba(0,255,136,.35); animation: pulseBorder 1.5s ease-in-out infinite; }
+.phase-dealer   { color: var(--amber);  border-color: rgba(255,170,0,.35); }
+.phase-finished { color: var(--blue);   border-color: rgba(0,170,255,.3); }
+@keyframes pulseBorder { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 8px rgba(0,255,136,.25)} }
+
+/* ── WAITING ROOM ── */
+.waiting-room {
+  text-align: center; padding: 60px 20px;
+}
+.waiting-title {
+  font-family: var(--font-disp); font-size: 28px; font-weight: 900;
+  letter-spacing: 4px; color: var(--gold);
+  text-shadow: 0 0 24px rgba(255,215,0,.5);
+  margin-bottom: 8px;
+}
+.waiting-sub { font-size: 10px; color: var(--green3); letter-spacing: 2px; margin-bottom: 32px; }
+.node-pills { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+.node-pill {
+  padding: 5px 14px; border: 1px solid var(--border); border-radius: 1px;
+  font-size: 9px; letter-spacing: 1.5px; color: var(--green3);
+}
+.node-pill.joined { border-color: rgba(0,255,136,.4); color: var(--green); background: rgba(0,255,136,.06); }
+
+/* ── MISC ── */
+.sep { color: rgba(0,255,136,.2); }
+.spin {
+  display: inline-block; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <div class="logo">♠</div>
+    <div>
+      <div class="hdr-title">BLACKJACK · MESH</div>
+      <div class="hdr-sub">PROYECTOSC · P2P · {{ node_name }}</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <a href="/" class="back-btn">‹ DASHBOARD</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span id="status-msg">Buscando partida…</span>
+    <span class="phase-pill phase-waiting" id="phase-pill">— SIN PARTIDA —</span>
+  </div>
+
+  <!-- CREDITS + BET -->
+  <div class="credits-bar">
+    <div class="credits-info">
+      <div class="cred-item">
+        <div class="cred-lbl">Nodo</div>
+        <div class="cred-val green" style="font-size:14px;letter-spacing:1px">{{ node_name }}</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-lbl">Créditos</div>
+        <div class="cred-val" id="my-credits">1000</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-lbl">Apuesta</div>
+        <div class="cred-val" id="my-bet-disp" style="font-size:14px">—</div>
+      </div>
+    </div>
+    <div class="bet-controls">
+      <span style="font-size:9px;color:var(--green3);letter-spacing:1px;margin-right:4px">APUESTA</span>
+      <button class="bet-btn" onclick="adjustBet(-50)">−50</button>
+      <input class="bet-input" id="bet-input" type="number" value="100" min="10" step="10">
+      <button class="bet-btn" onclick="adjustBet(50)">+50</button>
+    </div>
+  </div>
+
+  <!-- GAME TABLE -->
+  <div class="game-table" id="game-table">
+
+    <!-- WAITING ROOM (inicial) -->
+    <div class="waiting-room" id="waiting-room">
+      <div class="waiting-title">♠ BLACKJACK ♥</div>
+      <div class="waiting-sub">RED MESH P2P · SISTEMAS COMPLEJOS</div>
+      <div class="node-pills" id="node-pills"></div>
+      <div class="actions">
+        <button class="action-btn primary"   onclick="createGame()">♠ CREAR PARTIDA</button>
+        <button class="action-btn secondary" onclick="joinGame()" id="btn-join" disabled>⇌ UNIRSE</button>
+        <button class="action-btn danger"    id="btn-force-reset" onclick="forceReset()" style="display:none">✕ CANCELAR PARTIDA</button>
+      </div>
+      <div style="margin-top:20px;font-size:8px;color:rgba(0,255,136,.2);letter-spacing:2px">
+        CREAR = SER EL REPARTIDOR · UNIRSE = SER JUGADOR
+      </div>
+    </div>
+
+    <!-- GAME IN PROGRESS (oculto hasta que haya partida) -->
+    <div id="game-area" style="display:none">
+
+      <!-- DEALER -->
+      <div class="hand-section dealer-slot">
+        <div class="hand-label">
+          ♦ DEALER
+          <span class="total-badge" id="dealer-total">—</span>
+        </div>
+        <div class="cards" id="dealer-cards"></div>
+      </div>
+
+      <hr class="table-divider">
+
+      <!-- JUGADORES -->
+      <div class="players-grid" id="players-grid"></div>
+
+      <!-- RESULTADO PROPIO -->
+      <div id="my-result-overlay" style="display:none" class="result-overlay">
+        <div class="result-text" id="result-text">—</div>
+        <div class="result-sub" id="result-sub"></div>
+        <button class="action-btn primary" onclick="newGame()" style="margin-top:8px">NUEVA PARTIDA</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions" id="action-bar">
+    <button class="action-btn primary"   id="btn-hit"    onclick="doAction('hit')"   disabled>PEDIR CARTA</button>
+    <button class="action-btn secondary" id="btn-stand"  onclick="doAction('stand')" disabled>PLANTARSE</button>
+    <button class="action-btn gold"      id="btn-double" onclick="doAction('double')" disabled>DOBLAR APUESTA</button>
+    <button class="action-btn secondary" id="btn-new"    onclick="newGame()"         style="display:none">NUEVA PARTIDA</button>
+    <button class="action-btn danger"    id="btn-leave"  onclick="leaveGame()"       style="display:none">SALIR DE PARTIDA</button>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+const MY_NAME   = {{ node_name | tojson }};
+let credits     = 1000;
+let gameState   = null;
+let busy        = false;   // bloqueo optimista — evita doble click
+let resultShown = false;   // evita que el poll reabra el overlay tras cerrarlo
+let _pendingState = null;  // estado SSE recibido mientras busy=true
+
+// ── Textos en español ────────────────────────────────────────
+const FASE = { waiting:'ESPERANDO', playing:'EN JUEGO', dealer_turn:'TURNO REPARTIDOR', finished:'FINALIZADO' };
+const ESTADO = { playing:'JUGANDO', stand:'PLANTADO', bust:'PASADO', blackjack:'BLACKJACK', win:'GANÓ', lose:'PERDIÓ', push:'EMPATE', waiting:'ESPERA', done:'LISTO' };
+const RESULTADO = { win:'¡GANASTE!', blackjack:'¡BLACKJACK!', bust:'¡TE PASASTE!', lose:'PERDISTE', push:'EMPATE' };
+
+// ── Bloqueo de botones ───────────────────────────────────────
+function lockBtns(label='…') {
+  busy = true;
+  _pendingState = null;
+  ['btn-hit','btn-stand','btn-double','btn-join'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = true; el._orig = el._orig || el.textContent; el.textContent = label; }
+  });
+}
+function unlockBtns() {
+  busy = false;
+  ['btn-hit','btn-stand','btn-double','btn-join'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el._orig) { el.textContent = el._orig; el._orig = null; }
+  });
+  // Aplicar estado que llegó por SSE mientras estábamos ocupados
+  if (_pendingState !== null) {
+    const s = _pendingState;
+    _pendingState = null;
+    applyServerState(s);
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function suitColor(suit) {
+  return (suit === '♥' || suit === '♦') ? 'red-suit' : 'black-suit';
+}
+function cardHTML(card, hidden=false) {
+  if (hidden) return `<div class="card hidden"></div>`;
+  const cls = suitColor(card.suit);
+  return `<div class="card">
+    <div class="card-val-top ${cls}">${card.val}<br><span style="font-size:10px">${card.suit}</span></div>
+    <div class="card-suit-center ${cls}">${card.suit}</div>
+    <div class="card-val-bot ${cls}">${card.val}</div>
+  </div>`;
+}
+function handTotal(hand) {
+  let total = 0, aces = 0;
+  for (const c of hand) {
+    if (c.val === 'A') { total += 11; aces++; }
+    else if (['J','Q','K'].includes(c.val)) total += 10;
+    else total += parseInt(c.val);
+  }
+  while (total > 21 && aces) { total -= 10; aces--; }
+  return total;
+}
+function adjustBet(delta) {
+  const inp = document.getElementById('bet-input');
+  inp.value = Math.max(10, Math.min(credits, parseInt(inp.value||100) + delta));
+}
+
+// ── Render principal ─────────────────────────────────────────
+function renderState(state) {
+  if (!state || !state.game_id) return;
+  gameState = state;
+
+  document.getElementById('waiting-room').style.display = 'none';
+  document.getElementById('game-area').style.display    = 'block';
+
+  const phase    = state.phase;
+  const isDealer = state.dealer === MY_NAME;
+  const me       = state.players[MY_NAME];
+  const finished = phase === 'finished';
+
+  // Fase pill
+  const pill = document.getElementById('phase-pill');
+  pill.textContent = FASE[phase] || phase.toUpperCase();
+  pill.className   = 'phase-pill phase-' + (phase === 'dealer_turn' ? 'dealer' : phase);
+
+  // Mensaje de estado
+  const msgEl = document.getElementById('status-msg');
+  if (finished)
+    msgEl.textContent = `Partida ${state.game_id} finalizada · repartidor: ${state.dealer}`;
+  else if (phase === 'dealer_turn')
+    msgEl.textContent = `El repartidor está jugando…`;
+  else if (phase === 'playing') {
+    const pend = Object.values(state.players).filter(p => p.status === 'playing').length;
+    msgEl.textContent = `${pend} jugador(es) por decidir`;
+  } else {
+    msgEl.textContent = `Partida ${state.game_id} · repartidor: ${state.dealer}`;
+  }
+
+  // Créditos
+  if (me) {
+    credits = me.credits;
+    document.getElementById('my-credits').textContent = me.credits;
+    document.getElementById('my-bet-disp').textContent = me.bet + ' cr';
+  }
+
+  // Mano del repartidor
+  const dHand   = state.dealer_hand || [];
+  const dHidden = state.dealer_hidden;
+  document.getElementById('dealer-cards').innerHTML =
+    dHand.map((c, i) => cardHTML(c, i === 0 && dHidden)).join('');
+  const dTotalEl = document.getElementById('dealer-total');
+  if (dHidden) {
+    dTotalEl.textContent = '?'; dTotalEl.className = 'total-badge';
+  } else {
+    const dt = handTotal(dHand);
+    dTotalEl.textContent = dt;
+    dTotalEl.className   = 'total-badge' + (dt > 21 ? ' bust' : dt === 21 ? ' bj' : '');
+  }
+
+  // Jugadores
+  document.getElementById('players-grid').innerHTML =
+    Object.entries(state.players).map(([name, p]) => {
+      const isMe  = name === MY_NAME;
+      const isDlr = name === state.dealer;
+      const total = handTotal(p.hand);
+      const tCls  = total > 21 ? ' bust' : total === 21 && p.hand.length === 2 ? ' bj' : p.status === 'stand' ? ' stand' : '';
+      const sCls  = 's-' + (p.result || p.status || 'waiting');
+      const sLbl  = ESTADO[p.result || p.status] || (p.result || p.status || '').toUpperCase();
+      return `<div class="player-slot ${isMe?'me':''} ${isDlr?'dealer-slot':''}">
+        <div class="player-name">
+          <span>${name}</span>
+          <span>
+            ${isMe  ? '<span class="you-tag">TÚ</span>' : ''}
+            ${isDlr ? '<span class="dealer-tag">REPARTIDOR</span>' : ''}
+          </span>
+        </div>
+        <div class="cards">${p.hand.map(c => cardHTML(c)).join('')}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+          <span class="status-badge ${sCls}">${sLbl}</span>
+          <span style="font-size:9px;color:rgba(0,255,136,.4)">
+            ${total > 0 ? `<span class="total-badge${tCls}" style="font-size:9px">${total}</span>` : ''}
+            &nbsp;· apuesta: ${p.bet}
+          </span>
+        </div>
+      </div>`;
+    }).join('');
+
+  // Botones de acción
+  const myTurn = me && me.status === 'playing' && phase === 'playing' && !busy;
+  document.getElementById('btn-hit').disabled    = !myTurn;
+  document.getElementById('btn-stand').disabled  = !myTurn;
+  document.getElementById('btn-double').disabled = !myTurn || !me || me.hand.length !== 2;
+  document.getElementById('btn-new').style.display   = finished ? '' : 'none';
+  // Salir: visible siempre que estés en la partida y no haya terminado
+  document.getElementById('btn-leave').style.display = (!finished && me) ? '' : 'none';
+
+  // Overlay de resultado — mostrar al terminar la partida O al pasarse en juego
+  const overlay = document.getElementById('my-result-overlay');
+  if (!resultShown && me) {
+    // Caso 1: partida terminada con resultado definitivo
+    const showFinal = finished && me.result;
+    // Caso 2: jugador se pasó mientras otros aún juegan (bust inmediato)
+    const showBust  = !finished && me.status === 'bust' && phase === 'playing';
+
+    if (showFinal || showBust) {
+      resultShown = true;
+      overlay.style.display = 'flex';
+      const rEl  = document.getElementById('result-text');
+      const rSub = document.getElementById('result-sub');
+      const res  = me.result || 'bust';
+      rEl.textContent = RESULTADO[res] || res.toUpperCase();
+      rEl.className   = 'result-text ' + res;
+      if (showBust) {
+        rSub.textContent = 'Esperando que terminen los demás…';
+      } else {
+        const gain = res === 'win'       ? '+' + me.bet
+                   : res === 'blackjack' ? '+' + Math.floor(me.bet * 1.5)
+                   : res === 'push'      ? '±0'
+                   : '-' + me.bet;
+        rSub.textContent = gain + ' créditos · saldo: ' + me.credits;
+      }
+      // Si la partida termina después del bust, actualizar el sub sin reabrir el overlay
+    } else if (resultShown && showFinal && overlay.style.display === 'flex') {
+      // Actualizar créditos si el overlay ya está visible (bust → finished)
+      const res  = me.result || 'bust';
+      const gain = res === 'win'       ? '+' + me.bet
+                 : res === 'blackjack' ? '+' + Math.floor(me.bet * 1.5)
+                 : res === 'push'      ? '±0'
+                 : '-' + me.bet;
+      document.getElementById('result-sub').textContent = gain + ' créditos · saldo: ' + me.credits;
+      document.getElementById('result-text').textContent = RESULTADO[res] || res.toUpperCase();
+      document.getElementById('result-text').className   = 'result-text ' + res;
+    }
+  }
+}
+
+function renderWaiting(peers) {
+  const onlinePeers = (peers || []).filter(p => p.status === 'online' && p.node_name !== MY_NAME);
+  document.getElementById('node-pills').innerHTML = [
+    `<div class="node-pill joined">${MY_NAME} (tú)</div>`,
+    ...onlinePeers.map(p => `<div class="node-pill">${p.node_name}</div>`)
+  ].join('');
+  const btnJoin = document.getElementById('btn-join');
+  if (btnJoin) btnJoin.disabled = onlinePeers.length === 0;
+}
+
+// ── Aplicar estado desde servidor (SSE o poll) ───────────────
+function applyServerState(state) {
+  if (state && state.game_id) {
+    if (!state.players || !state.players[MY_NAME]) {
+      document.getElementById('waiting-room').style.display = 'block';
+      document.getElementById('game-area').style.display    = 'none';
+      document.getElementById('phase-pill').textContent = 'PARTIDA EN CURSO';
+      document.getElementById('phase-pill').className   = 'phase-pill phase-playing';
+      document.getElementById('status-msg').textContent =
+        `Partida de ${state.dealer} activa — ¿te unes?`;
+      const btnJoin = document.getElementById('btn-join');
+      if (btnJoin) btnJoin.disabled = state.phase === 'finished';
+      document.getElementById('btn-force-reset').style.display = '';
+      renderWaiting(_peersCache);
+    } else {
+      document.getElementById('btn-force-reset').style.display = 'none';
+      renderState(state);
+    }
+  } else {
+    document.getElementById('btn-force-reset').style.display = 'none';
+    document.getElementById('waiting-room').style.display = 'block';
+    document.getElementById('game-area').style.display    = 'none';
+    document.getElementById('my-result-overlay').style.display = 'none';
+    document.getElementById('phase-pill').textContent = '— SIN PARTIDA —';
+    document.getElementById('phase-pill').className   = 'phase-pill phase-waiting';
+    document.getElementById('status-msg').textContent = 'Sin partida activa · Crea una o espera';
+    renderWaiting(_peersCache);
+  }
+}
+
+// ── Poll (fallback) ──────────────────────────────────────────
+let _peersCache = [];
+async function poll() {
+  try {
+    const [gRes, pRes] = await Promise.all([
+      fetch('/api/game/state'),
+      fetch('/api/peers-metrics'),
+    ]);
+    const state = await gRes.json();
+    _peersCache = await pRes.json();
+    if (!busy) applyServerState(state);
+    else _pendingState = state;
+  } catch(e) {}
+}
+
+// ── Acciones ─────────────────────────────────────────────────
+async function createGame() {
+  if (busy) return;
+  resultShown = false;
+  document.getElementById('my-result-overlay').style.display = 'none';
+  lockBtns('CREANDO…');
+  const bet = parseInt(document.getElementById('bet-input').value) || 100;
+  try {
+    const r = await fetch('/api/game/create', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ bet, credits }),
+    });
+    const state = await r.json();
+    unlockBtns();
+    renderState(state);
+  } catch(e) { unlockBtns(); }
+}
+
+async function joinGame() {
+  if (busy) return;
+  resultShown = false;
+  document.getElementById('my-result-overlay').style.display = 'none';
+  lockBtns('UNIÉNDOSE…');
+  const bet = parseInt(document.getElementById('bet-input').value) || 100;
+  try {
+    const r = await fetch('/api/game/join', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ bet, credits }),
+    });
+    if (!r.ok) { const e = await r.json(); unlockBtns(); alert(e.error || 'Error'); return; }
+    const state = await r.json();
+    unlockBtns();
+    renderState(state);
+  } catch(e) { unlockBtns(); }
+}
+
+async function doAction(action) {
+  if (busy) return;
+  const labels = { hit:'PIDIENDO…', stand:'PLANTANDO…', double:'DOBLANDO…' };
+  lockBtns(labels[action] || '…');
+  try {
+    const r = await fetch('/api/game/action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action }),
+    });
+    if (!r.ok) { const e = await r.json(); unlockBtns(); alert(e.error || 'Error'); return; }
+    const state = await r.json();
+    unlockBtns();
+    renderState(state);
+  } catch(e) { unlockBtns(); }
+}
+
+
+async function forceReset() {
+  if (!confirm('¿Cancelar la partida activa en todos los nodos?')) return;
+  try { await fetch('/api/game/reset', { method: 'POST' }); } catch(e) {}
+  document.getElementById('btn-force-reset').style.display = 'none';
+}
+
+async function leaveGame() {
+  if (busy) return;
+  lockBtns('SALIENDO…');
+  try { await fetch('/api/game/leave', { method: 'POST' }); } catch(e) {}
+  unlockBtns();
+  gameState   = null;
+  busy        = false;
+  resultShown = false;
+  document.getElementById('waiting-room').style.display      = 'block';
+  document.getElementById('game-area').style.display         = 'none';
+  document.getElementById('my-result-overlay').style.display = 'none';
+  document.getElementById('btn-leave').style.display         = 'none';
+  document.getElementById('btn-new').style.display           = 'none';
+  ['btn-hit','btn-stand','btn-double'].forEach(id => document.getElementById(id).disabled = true);
+}
+
+async function newGame() {
+  gameState   = null;
+  busy        = false;
+  resultShown = false;
+  document.getElementById('waiting-room').style.display      = 'block';
+  document.getElementById('game-area').style.display         = 'none';
+  document.getElementById('my-result-overlay').style.display = 'none';
+  ['btn-hit','btn-stand','btn-double'].forEach(id => document.getElementById(id).disabled = true);
+  document.getElementById('btn-new').style.display = 'none';
+  // Borrar partida en servidor y notificar peers
+  try { await fetch('/api/game/reset', { method: 'POST' }); } catch(e) {}
+}
+
+// ── SSE — actualizaciones en tiempo real ─────────────────────
+let _sseOk = false;
+
+function startSSE() {
+  const es = new EventSource('/api/game/events');
+
+  es.onopen = () => { _sseOk = true; };
+
+  es.onmessage = (e) => {
+    try {
+      const state = JSON.parse(e.data);
+      if (busy) {
+        // Guardar para aplicar en cuanto termine la acción en vuelo
+        _pendingState = state;
+      } else {
+        applyServerState(state);
+      }
+    } catch(err) {}
+  };
+
+  es.onerror = () => {
+    _sseOk = false;
+    es.close();
+    // Reconectar en 2s
+    setTimeout(startSSE, 2000);
+  };
+}
+
+// ── Salir automáticamente al cerrar/navegar ──────────────────
+window.addEventListener('beforeunload', () => {
+  if (gameState && gameState.players && gameState.players[MY_NAME]) {
+    // sendBeacon garantiza el envío aunque la página se esté cerrando
+    navigator.sendBeacon('/api/game/leave', '{}');
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────
+poll();
+setInterval(poll, 3000);
+startSSE();
+</script>
+</body>
+</html>

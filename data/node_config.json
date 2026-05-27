@@ -1,0 +1,17 @@
+{
+  "node_name": "Juliann",
+  "role": "peer",
+  "master_ip": "192.168.200.101",
+  "bat0_ip": "192.168.200.128",
+  "broadcast_ip": "255.255.255.255",
+  "broadcast_port": 12345,
+  "provision_port": 12346,
+  "dashboard_port": 5080,
+  "control_port": 5001,
+  "collaboration_pct": 100,
+  "online": true,
+  "gen_rate": 1.0,
+  "drop_prob": 0.0,
+  "payload_size": 0,
+  "envy_pct": 0
+}
